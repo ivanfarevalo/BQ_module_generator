@@ -10,10 +10,11 @@ def bqmod(ctx):
     bqmod is a command line tool that helps users create Bisque modules.
 
     \b
+    For a comprehensive guide go here: https://github.com/ivanfarevalo/BQ_module_generator
     Step 1: Create bqconfig file with 'bqmod init'
     Step 2: Set module name, author, and short description with 'bqmod set'
     Step 3: Set input types with 'bqmod inputs'
-    Step 4: Set output types with 'bqmod outputs'
+    Step 4: Set output types and names with 'bqmod outputs'
     Step 5: Review module configurations with 'bqmod summary'
     Step 6: Create module files with 'bqmod create_module'
     """
@@ -54,7 +55,7 @@ def init(ctx):
 @click.option("--name", "-n", default=None, help="Module name with no spaces")
 @click.option("--author", "-a", default=None, help="Authors name in quotations")
 @click.option("--description", "-d", default=None, help="Write short description in quotations")
-@click.option("--base_docker", "-b", default=None, help="Base docker image used to containarize source code") # TODO
+# @click.option("--base_docker", "-b", default=None, help="Base docker image used to containarize source code") # TODO
 @click.pass_context
 def set(ctx, name, author, description):
     """ Set name of module, author, and short description"""
@@ -76,7 +77,7 @@ def set(ctx, name, author, description):
 @bqmod.command("inputs", no_args_is_help=True)
 @click.option("--image", is_flag=True, default=False, help="Flag to indicate input of type image")
 @click.pass_context
-def inputs(ctx, image):
+def inputs(ctx, image):  #  NEED TO ADD FUNCTIONALITY TO CHANGE INPUT
     """Sets the type of input.
 
     Supported inputs include : --image"""
@@ -88,10 +89,11 @@ def inputs(ctx, image):
 
 
 @bqmod.command("outputs", no_args_is_help=True)
-@click.option("--image", "-i", is_flag=True, default=False, help="Flag to indicate output of type image")
+@click.option("--image", "-i", is_flag=True, default=False, help="Flag to indicate output of type image") # NEED TO ADD TABLE FUNCT
+@click.option("--csv", "-c", is_flag=True, default=False, help="Flag to indicate csv output which will be uploaded to files in Bisque")
 @click.option("--output_name", "-o", required=True, default=None, help="Name of the output to be shown in Bisque result. Ex. Segmented Image")
 @click.pass_context
-def outputs(ctx, image, output_name):
+def outputs(ctx, image, csv,  output_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE OUTPUT
     """Set the types of outputs and their respective output names.
 
         \b
@@ -100,6 +102,11 @@ def outputs(ctx, image, output_name):
     if image:
         ctx.obj['Outputs'].append('image')
         ctx.obj['Output_names'].append(output_name)
+
+    if csv:
+        ctx.obj['Outputs'].append('csv')
+        ctx.obj['Output_names'].append(output_name)
+
 
     with open("bqconfig.json", "w") as json_data_file:
         json.dump(ctx.obj, json_data_file)

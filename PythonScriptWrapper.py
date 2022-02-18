@@ -1,18 +1,18 @@
 import sys
-import io
+# import io
 from lxml import etree
 import xml.etree.ElementTree as ET
 import optparse
 import logging
 import os
-import numpy as np
+# import numpy as np
 
 # It is importing from source
 
 logging.basicConfig(filename='PythonScript.log', filemode='a', level=logging.DEBUG)
 log = logging.getLogger('bq.modules')
 
-from bqapi.comm import BQCommError
+# from bqapi.comm import BQCommError
 from bqapi.comm import BQSession
 from bqapi.util import fetch_blob
 
@@ -60,9 +60,11 @@ class PythonScriptWrapper(object):
             elif field == 'outputs' and node.attrib['name'] == 'outputs':
 
                 for output in node:
-                    output.set('value', out_xml_value)
-                    output_xml = ET.tostring(output).decode('utf-8')
-                    xml_data.append(output_xml)
+                    if output.attrib['name'] == 'OutImage':
+                        output.set('value', out_xml_value)
+                        output_xml = ET.tostring(output).decode('utf-8')
+                        xml_data.append(output_xml)
+
         log.info(f" xml data for {field} from wrapper is {xml_data}")
         return xml_data
 

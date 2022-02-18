@@ -56,6 +56,11 @@ class XMLGenerator():
                     output_name_tag = ET.SubElement(child, 'tag', attrib={'name': 'OutImage', 'type': 'image'})
                     template_tag = ET.SubElement(output_name_tag, 'template')
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': out_name})
+                if value == 'csv': # TEMPORARY FOR CONVINIENCE -> FILL IN  INFO YOURSELF
+                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': 'OutCsv'})
+                    template_tag = ET.SubElement(output_name_tag, 'template')
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': out_name})
+
 
             elif field == 'title' and child.attrib['name'] == 'title':
                 child.attrib['value'] = value
