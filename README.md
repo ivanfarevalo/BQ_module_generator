@@ -1,5 +1,5 @@
 # Bisque Module Generator
-##### V1.0.0
+##### V1.0.4
 
 Standardizes and automates the process of creating modules that can be integrated in the Bisque web application.
 This command line interface (CLI) currently supports any input types supported by Bisque but can only display image and table outputs. 
@@ -21,25 +21,23 @@ Before cloning this repo, structure your module in the following manner.
         -- src
             -- {source_code}
             -- BQ_run_module.py
-        -- inputs
-        -- outputs
 ```
 You should create a `Modules` folder which will only  contain the modules that you wish to test in Bisque.
 You should name your `{ModuleName}` folder how you would like your module name to appear in bisque, for ex. `EdgeDetection`.
-Create a folder named `src` and place all your source code inside it. Create an `inputs` and `outputs` folder on your  
-`{ModuleName}` folder. Finally, create a python file named `BQ_run_module.py` inside the `src` folder. 
+Create a folder named `src` and place all your source code inside it. Finally, create a python file named `BQ_run_module.py` inside the `src` folder. 
 
 #### BQ_run_module.py
 Include all necessary data pre-processing 
 code in ```BQ_run_module.py``` as well as a function named ```run_module``` that will take ```input_file_path```, ```output_folder_path```, 
-and any other tunable parameters to run your algorithm. This function should load input data from the ```input_file_path``` parameters 
+and any other tunable parameters to run your algorithm. For now this tunable parameters **must have a default value.** This function should load input data from the ```input_file_path``` parameters 
 , save any outputs to the ```output_folder_path```, ***AND return the output file path***. A sample file is shown below:
 ```
 import cv2
 import os
 from my_source_code import canny_detector
 
-def run_module(input_file_path, output_folder_path, min_hysteresis, max_hysteresis):
+# Tunable parameters must have defaults!
+def run_module(input_file_path, output_folder_path, min_hysteresis=10, max_hysteresis=100): 
 
     ##### Preprocessing #####
     img = cv2.imread(input_file_path, 0)
@@ -295,7 +293,7 @@ The runtime module configuration file specifies the image that Bisque will pull 
 The only line that should be updated is `docker.image = {modulename}:{tagname}`. This should specify the Docker image and tag name that you
 wish to test or deploy on Bisque. This file will be called when a user hits the `Run` button in your module's page on Bisque.
 
-**IMPORTANT: It is very important to update the runtime-module.cfg each time you build an image with a differente name or tag
+**IMPORTANT: It is very important to update the runtime-module.cfg each time you build an image with a different name or tag
 so Bisque pulls the correct image you want to test.**
 
 This is an example of a `runtime-module.cfg` for the EdgeDetection module:

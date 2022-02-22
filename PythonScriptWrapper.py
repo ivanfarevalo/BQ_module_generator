@@ -112,7 +112,11 @@ class PythonScriptWrapper(object):
         #        heatmap=np.transpose(heatmap, (1, 2, 0))
         #        input_image=np.transpose(input_image, (1, 2, 0))
 
-        out_data_path = run_module(os.path.join(os.getcwd(), self.inputs[0]['resource_name']))  # Path to output files HARDCODED FOR NOW
+        input_file_path = os.path.join(os.getcwd(), self.inputs[0]['resource_name'])
+        # output_folder_path = os.path.join(os.path.dirname(os.getcwd()), 'outputs')
+        output_folder_path = os.getcwd()
+
+        out_data_path = run_module(input_file_path, output_folder_path)  # Path to output files HARDCODED FOR NOW
         log.info("Output image path: %s" % out_data_path)
 
         #        img = nib.Nifti1Image(input_image*heatmap, np.eye(4))  # Save axis for data (just identity)
