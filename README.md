@@ -315,7 +315,7 @@ Download the latest Bisque module development image by running:
 ```bash
 docker pull amilworks/bisque-module-dev:git
 ```
-The following command will launch a container named `bq-module-dev` on `http://{your.private.ip.address}:8080/`. The option `--v $(pwd):/source/modules`
+The following command will launch a container named `bisque` on `http://{your.private.ip.address}:8080/`. The option `--v $(pwd):/source/modules`
 will mount your local module located in your current directory `$(pwd)` to your container at `/source/modules`.
 The `-v /var/run/docker.sock:/var/run/docker.sock` option will 
 enable access to your local docker containers within the BisQue dev container. This is crucial 
@@ -333,7 +333,7 @@ ivan@bisque:~/Bisque/Modules$ ls
 EdgeDetection
 
 # Run container
-ivan@bisque:~/Bisque/Modules$ docker run --name bq-module-dev --rm -p 8080:8080 -v $(pwd):/source/modules -v /var/run/docker.sock:/var/run/docker.sock amilworks/bisque-module-dev:git
+ivan@bisque:~/Bisque/Modules$ docker run --name bisque --rm -p 8080:8080 -v $(pwd):/source/modules -v /var/run/docker.sock:/var/run/docker.sock amilworks/bisque-module-dev:git
 ```
 #### Logging Into Bisque
 Navigate to `http://{your.private.ip.address}:8080/` on any web browser and Bisque should be up and running.
