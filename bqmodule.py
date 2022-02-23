@@ -117,7 +117,7 @@ def outputs(ctx, image, csv,  output_name):  #  NEED TO ADD FUNCTIONALITY TO CHA
 def summary(ctx):
     """ Print bqmodule configuration settings."""
     for key in ctx.obj:
-        click.secho(f"{key}: {ctx.obj[key]}", fg='green')
+        click.secho("%s: %s" % (key, ctx.obj[key]), fg='green')
 
 
 @bqmod.command("create_module")
@@ -137,7 +137,7 @@ def create_module(ctx):
     BQ_module_xml.edit_xml('description', ctx.obj['Description'])
     BQ_module_xml.write_xml()
 
-    click.secho(f"{ctx.obj['Name']}.xml created", fg='green')
+    click.secho("{%s.xml created" % ctx.obj['Name'], fg='green')
 
 
 @bqmod.command("check_module")

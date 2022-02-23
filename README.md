@@ -57,22 +57,23 @@ def run_module(input_file_path, output_folder_path, min_hysteresis=10, max_hyste
     ##### Return output file path #####  -> Important step
     return output_file_path
     
-if __name__ = '__main__':
-    # Place some code to test implementation
+if __name__ == '__main__':
+    # Some code to test implementation, test with absolute paths to avoid bugs
     
-    root_folder_path = os.path.dirname(os.getcwd())
-    input_file_path = os.path.join(root_folder_path, 'inputs/trial_img.png')
-    output_folder_path = os.path.join(root_folder_path, 'outputs')
+    root_folder_path = os.path.dirname(os.path.abspath(__file__)) # Absolute path to parent directory 
+    input_file_path = os.path.join(root_folder_path, 'bob.jpg')
+    output_folder_path = root_folder_path
+
     output_file_path = run_module(input_file_path, output_folder_path, 100, 200)
-    print(f"Output file saved to: {output_file_path}")
+    print("Output file saved to: %s" % output_file_path)
     
 ```
 
 #### Containerizing application 
 
-Test your ```run_module``` function by placing an input file in the inputs folder, 
-calling ```python BQ_run_module.py``` with the ```input_file_path``` hardcoded to the test file placed in the ```inputs``` folder 
-and the  ```output_folder_path``` hardcoded to the relative path to the ```outputs``` folder. Once ```BQ_run_module.py``` is
+Test your `run_module` function by placing an input file in the `src` folder, 
+calling `python BQ_run_module.py` with the `input_file_path` pointing to the absolute test file path 
+and the  `output_folder_path` pointing to the absolute path to the `src` folder. Once `BQ_run_module.py` is
 working as expected, you can containerize your application with docker. Follow the instructions on [downloading docker](https://www.docker.com/products/docker-desktop),
 [creating a Dockerfile](https://docker-curriculum.com/#dockerfile), and [running a container](https://docker-curriculum.com/#docker-run). 
 Here is an example of a Dockerfile for a simple edge detection module.
@@ -94,9 +95,17 @@ RUN apt-get install ffmpeg libsm6 libxext6 -y
 # ===================Module Dependencies============================
 
 RUN pip3 install cycler imageio kiwisolver matplotlib numpy opencv-python Pillow pyparsing python-dateutil scipy 
+
+# ===================Copy Source Code===============================
+
+RUN mkdir /module
+WORKDIR /module
+
+COPY src /module/src
 ```
-Create your image by running `docker build -t {ModuleName}:v0.0.0 .` in your `{ModuleName}` folder.
-Run your docker container with ```docker run -it {ModuleName}:v0.0.0 bash```
+Create your image by running `docker build -t {modulemame}:v0.0.0 .` in your `{ModuleName}` folder. Note that docker
+images are only allowed to have lowercase letters.
+Run your docker container with `docker run -it {modulemame}:v0.0.0 bash`
 and test your application inside the container by calling ```python BQ_run_module.py```. 
 
 ## Generating Module Files
@@ -108,6 +117,10 @@ Now that you have containerized and tested your application, you are ready to pu
 First step is to clone this repo and install the CLI. You can create a virtual environment in which to install
 the CLI if you wish.
 ```bash
+# Go to a directory outside your Modules folder and clone the rep
+ivan@bisque:~/Bisque/Modules$ cd ~/Bisque
+ivan@bisque:~/Bisque$ git clone https://github.com/ivanfarevalo/BQ_module_generator.git
+
 # Go into the BQ_module_generator folder
 ivan@bisque:~/Bisque$ cd BQ_module_generator
 
@@ -116,7 +129,7 @@ ivan@bisque:~/Bisque/BQ_module_generator$ virtualenv bqvenv
 ivan@bisque:~/Bisque/BQ_module_generator$ . bqvenv/bin/activate
 
 # This is required
-(bqvenv) ivan@bisque:~/Bisque/BQ_module_generator$ pip install --editable .
+(bqvenv) ivan@bisque:~/Bisque/BQ_module_generator$ pip3 install --editable .
 ```
 Test the installation by running ```bqmod --help```. You should get a help message. Remember to activate your virtual environment
 if you used one during installation, otherwise you wont be able to run the commands.
@@ -236,6 +249,13 @@ RUN apt-get install ffmpeg libsm6 libxext6 -y
 
 RUN pip3 install cycler imageio kiwisolver matplotlib numpy opencv-python Pillow pyparsing python-dateutil scipy 
 
+# ===================Copy Source Code===============================
+
+RUN mkdir /module
+WORKDIR /module
+
+COPY src /module/src
+
 ####################################################################
 ######################## Append From Here Down #####################
 ####################################################################
@@ -248,42 +268,42 @@ RUN pip3 install requests==2.18.4
 RUN pip3 install requests-toolbelt
 
 # =====================Build Directory Structure====================
-RUN mkdir /module
-WORKDIR /module
 
-COPY src /module/src
 COPY PythonScriptWrapper.py /module/
 COPY bqapi/ /module/bqapi
 COPY EdgeDetection.xml /module/EdgeDetection.xml
 
 ENV PATH /module:$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PYTHONPATH $PYTHONPATH:/module/src
 ```
  
 
 #### Creating Module Image
 Once you update the Dockerfile, create a new Docker image by running the following command from your `{ModuleName}` folder.
-Note that docker images must have lowercase names and tags.
+Note that docker images must have lowercase names and tags. The `biodev.ece.ucsb.edu:5000/` prefix is needed for 
+Bisque to pull the image. Once you are ready to deploy your application to production, you will push this image to the
+specified repo.
 ```bash
-docker build -t {modulename}:{tagname} .
+docker build -t biodev.ece.ucsb.edu:5000/{modulename}:{tagname} .
 ```
 It is good practice to specify a `{tagname}` that identifies the image versions. As you add functionalities and customize your module,
 it is a good idea to keep track  of the various stable images of your module. By default, 
 Docker will tag the image `latest` if a tag is not provided. The following are a few example of how you could tag your images:
 ```bash
 # First stable module image
-docker build -t edgedetection:v1.0.0 .
+docker build -t biodev.ece.ucsb.edu:5000/edgedetection:v1.0.0 .
 ```
 ```bash
 # Small bugs fixed
-docker build -t edgedetection:v1.0.4 .
+docker build -t biodev.ece.ucsb.edu:5000/edgedetection:v1.0.4 .
 ```
 ```bash
 # Implementing some interactive parameters
-docker build -t edgedetection:v1.2.0 .
+docker build -t biodev.ece.ucsb.edu:5000/edgedetection:v1.2.0 .
 ```
 ```bash
 # Second stable module image with all features implemented
-docker build -t edgedetection:v2.0.0 .
+docker build -t biodev.ece.ucsb.edu:5000/edgedetection:v2.0.0 .
 ```
 You can also overwrite images by building with same `{modulename}:{tagname}` until you get to a point in which you want to
 keep that specific image as reference.
@@ -291,7 +311,8 @@ keep that specific image as reference.
 The runtime module configuration file specifies the image that Bisque will pull when a user runs your module.
 
 The only line that should be updated is `docker.image = {modulename}:{tagname}`. This should specify the Docker image and tag name that you
-wish to test or deploy on Bisque. This file will be called when a user hits the `Run` button in your module's page on Bisque.
+wish to test or deploy on Bisque. This file will be called when a user hits the `Run` button in your module's page on Bisque. 
+Note that the prefix `biodev.ece.ucsb.edu:5000/` is not included in this line, Bisque will prepend it before pulling your local image.
 
 **IMPORTANT: It is very important to update the runtime-module.cfg each time you build an image with a different name or tag
 so Bisque pulls the correct image you want to test.**
@@ -339,11 +360,16 @@ ivan@bisque:~/Bisque/Modules$ docker run --name bisque --rm -p 8080:8080 -v $(pw
 Navigate to `http://{your.private.ip.address}:8080/` on any web browser and Bisque should be up and running.
 For example, if my ip address is `192.168.181.345`, you would navigate to `http://192.168.181.345:8080/`. 
 You can find your private ip address by running: 
-```
+```bash
 ifconfig | grep "inet.*broadcast.*" | awk '{print $2}'
 ```
+or
+```bash
+ifconfig | grep "inet.*Bcast.*" | awk '{print $2}'
+```
+It will be the address that has twelve digits with a period after every third digit.
 You can also read the following [article](https://www.techbout.com/find-public-and-private-ip-address-44552/) to find 
-your private ip address if the previous command doesn't work.
+your private ip address if the previous commands didn't work.
 
 If Bisque is not up, go into the container with `docker run -it amilworks/bisque-module-dev:git bash` and check the 
 `bisque_8080.log` to debug. Report any issues on the [Bisque GitHub](https://github.com/UCSB-VRL/bisqueUCSB).
