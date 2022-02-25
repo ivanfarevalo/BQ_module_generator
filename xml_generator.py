@@ -32,6 +32,82 @@ class XMLGenerator():
     def xml_set_module_name(self):
         self.root.attrib['name'] = self.module_name
 
+
+        # <tag name="inputs">
+        #         <tag name="table_url" type="resource">
+        #             <template>
+        #                 <tag name="accepted_type" value="table" />
+        #                 <tag name="accepted_type" value="dataset" />
+        #                 <tag name="label" value="Table to extract metadata" />
+        #                 <tag name="prohibit_upload" value="true" type="boolean" />
+        #             </template>
+        #         </tag>
+
+
+        # <tag name="reducer_url"  type="resource">
+        #     <template>
+        #         <tag name="label" value="Select a PyTorch Model" />
+        #         <tag name="accepted_type" value="file" />
+        #         <tag name="prohibit_upload" value="true" />
+        #          <tag name="query" value="filename:*.pt" />
+        #          <tag name="example_query" value="default_reducer:true" />
+        #          <tag name="example_type" value="file" />
+        #     </template>
+        # </tag>
+
+    def add_input(self, type, input_name):
+
+        input_var_name = '_'.join(input_name.split()).lower()
+
+        for child in self.root:
+
+            if child.attrib['name'] == 'inputs':
+                if type == 'image':
+                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_var_name, 'type': 'resource'})
+                    template_tag = ET.SubElement(input_name_tag, 'template')
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': input_name})
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'image'})
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
+                elif type == 'blob':
+                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_var_name, 'type': 'resource'})
+                    template_tag = ET.SubElement(input_name_tag, 'template')
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': input_name})
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'file'})
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
+                elif type == 'table':
+                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_var_name, 'type': 'resource'})
+                    template_tag = ET.SubElement(input_name_tag, 'template')
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': input_name})
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'table'})
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
+                elif type == 'mex':
+                    ET.SubElement(child, 'tag', attrib={'name': 'mex_url', 'type': 'system-input'})
+                elif type == 'bisque_token':
+                    ET.SubElement(child, 'tag', attrib={'name': 'bisque_token', 'type': 'system-input'})
+
+    def add_output(self, type, output_name):
+
+        outut_var_name = '_'.join(output_name.split()).lower()
+
+        for child in self.root:
+            if type == 'image':
+                output_name_tag = ET.SubElement(child, 'tag', attrib={'name': outut_var_name, 'type': 'image'})
+                template_tag = ET.SubElement(output_name_tag, 'template')
+                ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
+            if type == 'csv':
+                output_name_tag = ET.SubElement(child, 'tag', attrib={'name': outut_var_name, 'type': 'table'})
+                template_tag = ET.SubElement(output_name_tag, 'template')
+                ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
+            if type == 'blob':
+                output_name_tag = ET.SubElement(child, 'tag', attrib={'name': outut_var_name})
+                template_tag = ET.SubElement(output_name_tag, 'template')
+                ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
+
+
+
+
     def edit_xml(self, field, value, out_name='Output'):
 
         for child in self.root:

@@ -32,7 +32,7 @@ def bqmod(ctx):
 def create_config_file():
     """ Creates bqconfig.json file which will store a dictionary of values used to generate module files"""
     with open("bqconfig.json", "w") as json_data_file:
-        config_data = {'Name': None, 'Author': None, 'Description': None, 'Inputs': [], 'Outputs': [], 'Output_names': []}
+        config_data = {'Name': None, 'Author': None, 'Description': None, 'Inputs': {}, 'Outputs': {}}
         json.dump(config_data, json_data_file)
 
 
@@ -52,7 +52,7 @@ def init(ctx):
 
 
 @bqmod.command("set", no_args_is_help=True)
-@click.option("--name", "-n", default=None, help="Module name with no spaces")
+@click.option("--name", "-n", default=None, help="Module name with no spaces. Same as {ModuleName} folder")
 @click.option("--author", "-a", default=None, help="Authors name in quotations")
 @click.option("--description", "-d", default=None, help="Write short description in quotations")
 # @click.option("--base_docker", "-b", default=None, help="Base docker image used to containarize source code") # TODO
@@ -74,15 +74,36 @@ def set(ctx, name, author, description):
         click.echo("Need to include at least on option [--name --author --description]")
         click.echo(ctx.invoked_subcommand)
 
+
+def check_var_name(name):
+    return '_'.join(name.split()).lower()
+
+
 @bqmod.command("inputs", no_args_is_help=True)
 @click.option("--image", is_flag=True, default=False, help="Flag to indicate input of type image")
+@click.option("--blob", is_flag=True, default=False, help="Flag to indicate an input that is not of type image")
+@click.option("--input_name", "-n", required=True, default=None, help="Name of the input to be shown in Bisque result. Ex. Input Image")
 @click.pass_context
-def inputs(ctx, image):  #  NEED TO ADD FUNCTIONALITY TO CHANGE INPUT
+def inputs(ctx, image, blob, input_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE INPUT
     """Sets the type of input.
 
     Supported inputs include : --image"""
+
     if image:
-        ctx.obj['Inputs'].append('image')
+        input_type = 'image'
+    elif blob:
+        input_type = 'blob'  # Unsure if this works
+    else:
+        # raise click.BadOptionUsage(image, 'You must specify an input type. Use bqmod inputs --help for more info', ctx=ctx)
+        raise click.UsageError('Must include input type: --image', ctx=ctx)
+
+    try:
+        if check_var_name(ctx.obj['Inputs'][input_name]) == check_var_name(input_name):
+            if click.confirm('An input with the name "%s" has already been set (case-insensitive). Would you like to overwrite?' % input_name, abort=True):
+                ctx.obj['Inputs'][input_name] = input_type
+    except KeyError:
+        ctx.obj['Inputs'][input_name] = input_type
+
 
     with open("bqconfig.json", "w") as json_data_file:
         json.dump(ctx.obj, json_data_file)
@@ -91,7 +112,7 @@ def inputs(ctx, image):  #  NEED TO ADD FUNCTIONALITY TO CHANGE INPUT
 @bqmod.command("outputs", no_args_is_help=True)
 @click.option("--image", "-i", is_flag=True, default=False, help="Flag to indicate output of type image") # NEED TO ADD TABLE FUNCT
 @click.option("--csv", "-c", is_flag=True, default=False, help="Flag to indicate csv output which will be uploaded to files in Bisque")
-@click.option("--output_name", "-o", required=True, default=None, help="Name of the output to be shown in Bisque result. Ex. Segmented Image")
+@click.option("--output_name", "-n", required=True, default=None, help="Name of the output to be shown in Bisque result. Ex. Segmented Image")
 @click.pass_context
 def outputs(ctx, image, csv,  output_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE OUTPUT
     """Set the types of outputs and their respective output names.
@@ -99,14 +120,20 @@ def outputs(ctx, image, csv,  output_name):  #  NEED TO ADD FUNCTIONALITY TO CHA
         \b
         Supported outputs include : --image
         Ex. bqmod outputs --image --output_name "Segmented Image" """
+
     if image:
-        ctx.obj['Outputs'].append('image')
-        ctx.obj['Output_names'].append(output_name)
+        output_type = 'image'
+    elif csv:
+        output_type = 'csv'
+    else:
+        raise click.UsageError('Must include an output type: --image, --csv', ctx=ctx)
 
-    if csv:
-        ctx.obj['Outputs'].append('csv')
-        ctx.obj['Output_names'].append(output_name)
-
+    try:
+        if check_var_name(ctx.obj['Outputs'][output_name]) ==  check_var_name(output_name):
+            if click.confirm('An input with the name "%s" has already been set. Would you like to overwrite it?' % output_name, abort=True):
+                ctx.obj['Inputs'][output_name] = output_type
+    except KeyError:
+        ctx.obj['Outputs'][output_name] = output_type
 
     with open("bqconfig.json", "w") as json_data_file:
         json.dump(ctx.obj, json_data_file)
@@ -128,6 +155,9 @@ def create_module(ctx):
     BQ_module_xml = XMLGenerator(ctx.obj['Name'])
 
     BQ_module_xml.xml_set_module_name()
+    for input_name in ctx.obj['Inputs']:
+        BQ_module_xml.edit_xml('inputs', ctx.obj['Inputs'][input_name])
+
     BQ_module_xml.edit_xml('inputs', ctx.obj['Inputs'][0])
     BQ_module_xml.edit_xml('inputs', 'mex')
     BQ_module_xml.edit_xml('inputs', 'bisque_token')
@@ -140,19 +170,31 @@ def create_module(ctx):
     click.secho("{%s.xml created" % ctx.obj['Name'], fg='green')
 
 
-@bqmod.command("check_module")
+@bqmod.command("create_module_pro")
 @click.pass_context
-def create_module(ctx):
-    """ Checks module folder structure """
-    pass
+def create_module_pro(ctx):
+    """ Create module files"""
 
+    BQ_module_xml = XMLGenerator(ctx.obj['Name'])
 
-@bqmod.command("check_module")
-@click.pass_context
-def create_module(ctx):
-    """ Checks module folder structure """
+    BQ_module_xml.xml_set_module_name()
 
-    pass
+    for input_name in ctx.obj['Inputs']:
+        BQ_module_xml.add_input(ctx.obj['Inputs'][input_name])
+
+    BQ_module_xml.edit_xml('inputs', 'mex')
+    BQ_module_xml.edit_xml('inputs', 'bisque_token')
+
+    for output_name in ctx.obj['Outputs']:
+        BQ_module_xml.add_output(ctx.obj['Outputs'][output_name])
+
+    BQ_module_xml.edit_xml('title', ctx.obj['Name'])
+    BQ_module_xml.edit_xml('authors', ctx.obj['Author'])
+    BQ_module_xml.edit_xml('description', ctx.obj['Description'])
+    BQ_module_xml.write_xml()
+
+    click.secho("{%s.xml created" % ctx.obj['Name'], fg='green')
+
 
 
 # Create module: create xml, copy PythonScriptWrapper,

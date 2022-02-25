@@ -43,51 +43,115 @@ class PythonScriptWrapper(object):
 
 
     # For very simple, image in image out case.  Will extend to more input/output cases.
-    def get_xml_data(self, field, out_xml_value='Default', bq=None):
+    # def get_xml_data(self, field, out_xml_value='Default', bq=None):
+    #     xml_data = []
+    #
+    #     for node in self.root:  # Iterate tree to parse necessary information
+    #         # print(child.tag, child.attrib)
+    #         if field == 'inputs' and node.attrib['name'] == 'inputs':
+    #
+    #             for input in node:
+    #                 if input.attrib['name'] == 'resource_url':
+    #                     resource_ulr = bq.load(self.options.resource_url)
+    #                     resource_name = resource_ulr.__dict__['name']
+    #                     resource_dict = {'resource_url': resource_ulr, 'resource_name':resource_name}
+    #                     xml_data.append(resource_dict)
+    #
+    #         elif field == 'outputs' and node.attrib['name'] == 'outputs':
+    #
+    #             for output in node:
+    #                 if output.attrib['name'] == 'OutImage':
+    #                     output.set('value', out_xml_value)
+    #                     output_xml = ET.tostring(output).decode('utf-8')
+    #                     xml_data.append(output_xml)
+    #
+    #     log.info(f" xml data for {field} from wrapper is {xml_data}")
+    #     return xml_data
+
+
+
+
+    # log.debug('kw is: %s', str(kw))
+    # predictor_uniq = predictor_url.split('/')[-1]
+    # reducer_uniq = reducer_url.split('/')[-1]
+    # table_uniq = table_url.split('/')[-1]
+    #
+    # predictor_url = bq.service_url('blob_service', path=predictor_uniq)
+    # predictor_path = os.path.join(kw.get('stagingPath', ''), 'predictor.sav')
+    # predictor_path = bq.fetchblob(predictor_url, path=predictor_path)
+    #
+    # reducer_url = bq.service_url('blob_service', path=reducer_uniq)
+    # reducer_path = os.path.join(kw.get('stagingPath', ''), 'reducer.sav')
+    # reducer_path = bq.fetchblob(reducer_url, path=reducer_path)
+
+    def get_xml_outputs(self, out_xml_value):
         xml_data = []
 
         for node in self.root:  # Iterate tree to parse necessary information
-            # print(child.tag, child.attrib)
-            if field == 'inputs' and node.attrib['name'] == 'inputs':
-
-                for input in node:
-                    if input.attrib['name'] == 'resource_url':
-                        resource_ulr = bq.load(self.options.resourceURL)
-                        resource_name = resource_ulr.__dict__['name']
-                        resource_dict = {'resource_url': resource_ulr, 'resource_name':resource_name}
-                        xml_data.append(resource_dict)
-
-            elif field == 'outputs' and node.attrib['name'] == 'outputs':
-
+            # print(node.tag, node.attrib)
+            if node.attrib['name'] == 'outputs':
                 for output in node:
                     if output.attrib['name'] == 'OutImage':
                         output.set('value', out_xml_value)
                         output_xml = ET.tostring(output).decode('utf-8')
                         xml_data.append(output_xml)
 
-        log.info(f" xml data for {field} from wrapper is {xml_data}")
+        log.info(f"***** Output XML data: {xml_data}")
+        return xml_data
+
+
+    def get_xml_inputs(self, bq): #TODO Not hardcoded resource_url
+        xml_data = []
+
+        for node in self.root:  # Iterate tree to parse necessary information
+            # print(node.tag, node.attrib)
+            if node.attrib['name'] == 'inputs':
+
+                for child in node.iter():
+                    try:
+                        if (child.attrib['name'] == 'accepted_type' and child.attrib['value'] == 'image'):
+                            print("INPUT OF TYPE IMAGE!")
+
+                            resource_ulr = bq.load(self.options.resource_url)
+                            resource_name = resource_ulr.__dict__['name']
+                            resource_dict = {'resource_url': resource_ulr, 'resource_name': resource_name}
+                            xml_data.append(resource_dict)
+
+                    except KeyError:
+                        pass
+
+        log.info(f"***** Input XML data: {xml_data}")
         return xml_data
 
     def pre_process(self, bq):
+        """
+        Ingests and logs xml file inputs and outputs
+
+        :param bq:
+        :return:
+        """
 
         log.info('Options: %s' % (self.options))
-        """
-        1. Get the input resource blobs
-        """
 
-        # self.image = bq.load(self.options.resourceURL)
+        # self.image = bq.load(self.options.resource_url)
         # self.image_name = self.image.__dict__['name']
 
-        self.inputs = self.get_xml_data('inputs',  bq=bq)
+        self.inputs = self.get_xml_inputs(bq=bq)
+        # self.inputs = self.get_xml_data('inputs',  bq=bq)
 
+        # self.outputs = self.get_xml_outputs(bq=bq, out_xml_value=)
+
+        # Saves and log input
         for input in self.inputs:
 
             log.info("Process resource as %s" % (input['resource_name']))
             log.info("Resource meta: %s" % (input['resource_url']))
             cwd = os.getcwd()
             log.info("Current work directory: %s" % (cwd))
-            result = fetch_blob(bq, self.options.resourceURL, dest=os.path.join(cwd, input['resource_name']))
-            log.info(f"Output of fetch blob in line 87 is : {result}")
+
+            # Saves resource to module container
+            result = fetch_blob(bq, self.options.resource_url, dest=os.path.join(cwd, input['resource_name']))
+            log.info(f"Output of fetch blob in pre_process : {result}")
 
     #        if '.gz' in self.image_name:
     #            os.rename(self.image_name,self.image_name.replace('.gz',''))
@@ -135,7 +199,8 @@ class PythonScriptWrapper(object):
 
         #         self.output_resources.append(out_xml)
 
-        self.output_resources = self.get_xml_data('outputs', out_xml_value=(str(self.out_image.get('value'))))
+        self.output_resources = self.get_xml_outputs(out_xml_value=(str(self.out_image.get('value'))))
+        # self.output_resources = self.get_xml_data('outputs', out_xml_value=(str(self.out_image.get('value'))))
 
         # out_imgxml = """<tag name="EdgeImage" type="image" value="%s">
         #                 <template>
@@ -238,7 +303,7 @@ class PythonScriptWrapper(object):
 
     def upload_service(self, bq, filename, data_type='image'):
         """
-        Upload resource to image_service upon post process
+        Upload resource to specific service upon post process
         """
         mex_id = bq.mex.uri.split('/')[-1]
 
@@ -289,7 +354,7 @@ class PythonScriptWrapper(object):
         parser.add_option('--user', dest="user")
         parser.add_option('--pwd', dest="pwd")
         parser.add_option('--root', dest="root")
-        parser.add_option('--resource_url', dest="resourceURL")
+        # parser.add_option('--resource_url', dest="resource_url")
 
         (options, args) = parser.parse_args()
 
@@ -302,12 +367,10 @@ class PythonScriptWrapper(object):
 
         try:  # pull out the mex
 
-            if not options.resourceURL:
-                options.resourceURL = sys.argv[1]
             if not options.mexURL:
-                options.mexURL = sys.argv[2]
+                options.mexURL = sys.argv[-2]
             if not options.token:
-                options.token = sys.argv[3]
+                options.token = sys.argv[-1]
         except IndexError:  # no argv were set
             pass
 
