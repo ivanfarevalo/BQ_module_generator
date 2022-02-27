@@ -80,8 +80,8 @@ def check_var_name(name):
 
 
 @bqmod.command("inputs", no_args_is_help=True)
-@click.option("--image", is_flag=True, default=False, help="Flag to indicate input of type image")
-@click.option("--blob", is_flag=True, default=False, help="Flag to indicate an input that is not of type image")
+@click.option("--image", "-i", is_flag=True, default=False, help="Flag to indicate input of type image")
+@click.option("--blob", "-b", is_flag=True, default=False, help="Flag to indicate an input that is not of type image")
 @click.option("--input_name", "-n", required=True, default=None, help="Name of the input to be shown in Bisque result. Ex. Input Image")
 @click.pass_context
 def inputs(ctx, image, blob, input_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE INPUT
@@ -97,12 +97,15 @@ def inputs(ctx, image, blob, input_name):  #  NEED TO ADD FUNCTIONALITY TO CHANG
         # raise click.BadOptionUsage(image, 'You must specify an input type. Use bqmod inputs --help for more info', ctx=ctx)
         raise click.UsageError('Must include input type: --image', ctx=ctx)
 
+    input_var_name = check_var_name(input_name)
     try:
-        if check_var_name(ctx.obj['Inputs'][input_name]) == check_var_name(input_name):
-            if click.confirm('An input with the name "%s" has already been set (case-insensitive). Would you like to overwrite?' % input_name, abort=True):
-                ctx.obj['Inputs'][input_name] = input_type
+
+        if ctx.obj['Inputs'][input_var_name]:
+        # if check_var_name(ctx.obj['Inputs'][input_name]) == check_var_name(input_name):
+            if click.confirm('An input with the name "%s" has already been set (case/whitespace-insensitive). Would you like to overwrite?' % input_name, abort=True):
+                ctx.obj['Inputs'][input_var_name] = (input_name, input_type)
     except KeyError:
-        ctx.obj['Inputs'][input_name] = input_type
+        ctx.obj['Inputs'][input_var_name] = (input_name, input_type)
 
 
     with open("bqconfig.json", "w") as json_data_file:
@@ -112,9 +115,10 @@ def inputs(ctx, image, blob, input_name):  #  NEED TO ADD FUNCTIONALITY TO CHANG
 @bqmod.command("outputs", no_args_is_help=True)
 @click.option("--image", "-i", is_flag=True, default=False, help="Flag to indicate output of type image") # NEED TO ADD TABLE FUNCT
 @click.option("--csv", "-c", is_flag=True, default=False, help="Flag to indicate csv output which will be uploaded to files in Bisque")
+@click.option("--blob", "-b", is_flag=True, default=False, help="Flag to indicate blob output which will be uploaded to files in Bisque")
 @click.option("--output_name", "-n", required=True, default=None, help="Name of the output to be shown in Bisque result. Ex. Segmented Image")
 @click.pass_context
-def outputs(ctx, image, csv,  output_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE OUTPUT
+def outputs(ctx, image, csv, blob, output_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE OUTPUT
     """Set the types of outputs and their respective output names.
 
         \b
@@ -125,15 +129,22 @@ def outputs(ctx, image, csv,  output_name):  #  NEED TO ADD FUNCTIONALITY TO CHA
         output_type = 'image'
     elif csv:
         output_type = 'csv'
+    elif blob:
+        output_type = 'blob'
     else:
         raise click.UsageError('Must include an output type: --image, --csv', ctx=ctx)
 
+    output_var_name = check_var_name(output_name)
     try:
-        if check_var_name(ctx.obj['Outputs'][output_name]) ==  check_var_name(output_name):
-            if click.confirm('An input with the name "%s" has already been set. Would you like to overwrite it?' % output_name, abort=True):
-                ctx.obj['Inputs'][output_name] = output_type
+
+        if ctx.obj['Outputs'][output_var_name]:
+            # if check_var_name(ctx.obj['Inputs'][input_name]) == check_var_name(input_name):
+            if click.confirm(
+                    'An input with the name "%s" has already been set (case/whitespace-insensitive). Would you like to overwrite?' % output_name,
+                    abort=True):
+                ctx.obj['Outputs'][output_var_name] = (output_name, output_type)
     except KeyError:
-        ctx.obj['Outputs'][output_name] = output_type
+        ctx.obj['Outputs'][output_var_name] = (output_name, output_type)
 
     with open("bqconfig.json", "w") as json_data_file:
         json.dump(ctx.obj, json_data_file)
@@ -147,9 +158,9 @@ def summary(ctx):
         click.secho("%s: %s" % (key, ctx.obj[key]), fg='green')
 
 
-@bqmod.command("create_module")
+@bqmod.command("create_module_old")
 @click.pass_context
-def create_module(ctx):
+def create_module_old(ctx):
     """ Create module files"""
 
     BQ_module_xml = XMLGenerator(ctx.obj['Name'])
@@ -170,23 +181,24 @@ def create_module(ctx):
     click.secho("{%s.xml created" % ctx.obj['Name'], fg='green')
 
 
-@bqmod.command("create_module_pro")
+@bqmod.command("create_module")
 @click.pass_context
-def create_module_pro(ctx):
+def create_module(ctx):
     """ Create module files"""
 
     BQ_module_xml = XMLGenerator(ctx.obj['Name'])
 
     BQ_module_xml.xml_set_module_name()
 
-    for input_name in ctx.obj['Inputs']:
-        BQ_module_xml.add_input(ctx.obj['Inputs'][input_name])
+    for input_var_name in ctx.obj['Inputs']:
+        BQ_module_xml.add_input(input_var_name, ctx.obj['Inputs'][input_var_name][0], ctx.obj['Inputs'][input_var_name][1])
 
     BQ_module_xml.edit_xml('inputs', 'mex')
     BQ_module_xml.edit_xml('inputs', 'bisque_token')
 
-    for output_name in ctx.obj['Outputs']:
-        BQ_module_xml.add_output(ctx.obj['Outputs'][output_name])
+    for output_var_name in ctx.obj['Outputs']:
+        BQ_module_xml.add_output(output_var_name, ctx.obj['Outputs'][output_var_name][0],
+                                ctx.obj['Outputs'][output_var_name][1])
 
     BQ_module_xml.edit_xml('title', ctx.obj['Name'])
     BQ_module_xml.edit_xml('authors', ctx.obj['Author'])

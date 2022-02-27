@@ -55,13 +55,13 @@ class XMLGenerator():
         #     </template>
         # </tag>
 
-    def add_input(self, type, input_name):
+    def add_input(self, input_var_name, input_name, type):
 
-        input_var_name = '_'.join(input_name.split()).lower()
+        # input_var_name = '_'.join(input_name.split()).lower()
 
         for child in self.root:
 
-            if child.attrib['name'] == 'inputs':
+            if child.attrib['name'] == 'inputs': #TODO Format the various input types correctly
                 if type == 'image':
                     input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_var_name, 'type': 'resource'})
                     template_tag = ET.SubElement(input_name_tag, 'template')
@@ -87,23 +87,24 @@ class XMLGenerator():
                 elif type == 'bisque_token':
                     ET.SubElement(child, 'tag', attrib={'name': 'bisque_token', 'type': 'system-input'})
 
-    def add_output(self, type, output_name):
+    def add_output(self, output_var_name, output_name, type):
 
-        outut_var_name = '_'.join(output_name.split()).lower()
+        # output_var_name = '_'.join(output_name.split()).lower()
 
         for child in self.root:
-            if type == 'image':
-                output_name_tag = ET.SubElement(child, 'tag', attrib={'name': outut_var_name, 'type': 'image'})
-                template_tag = ET.SubElement(output_name_tag, 'template')
-                ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
-            if type == 'csv':
-                output_name_tag = ET.SubElement(child, 'tag', attrib={'name': outut_var_name, 'type': 'table'})
-                template_tag = ET.SubElement(output_name_tag, 'template')
-                ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
-            if type == 'blob':
-                output_name_tag = ET.SubElement(child, 'tag', attrib={'name': outut_var_name})
-                template_tag = ET.SubElement(output_name_tag, 'template')
-                ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
+            if child.attrib['name'] == 'outputs':
+                if type == 'image':
+                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name, 'type': 'image'})
+                    template_tag = ET.SubElement(output_name_tag, 'template')
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
+                if type == 'csv':
+                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name, 'type': 'table'})
+                    template_tag = ET.SubElement(output_name_tag, 'template')
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
+                if type == 'blob':
+                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name})
+                    template_tag = ET.SubElement(output_name_tag, 'template')
+                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
 
 
 
