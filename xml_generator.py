@@ -102,7 +102,7 @@ class XMLGenerator():
                     template_tag = ET.SubElement(output_name_tag, 'template')
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
                 if type == 'blob':
-                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name})
+                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name, 'type': 'resource'})
                     template_tag = ET.SubElement(output_name_tag, 'template')
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
 
