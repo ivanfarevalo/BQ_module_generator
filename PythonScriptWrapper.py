@@ -42,7 +42,7 @@ class PythonScriptWrapper(object):
         self.root = tree.getroot()  # Get root node of tree
 
 
-    # For very simple, image in image out case.  Will extend to more input/output cases.
+    # For very simple, image in image out case.  Will extend to more input_resource/output cases.
     # def get_xml_data(self, field, out_xml_value='Default', bq=None):
     #     xml_data = []
     #
@@ -50,8 +50,8 @@ class PythonScriptWrapper(object):
     #         # print(child.tag, child.attrib)
     #         if field == 'inputs' and node.attrib['name'] == 'inputs':
     #
-    #             for input in node:
-    #                 if input.attrib['name'] == 'resource_url':
+    #             for input_resource in node:
+    #                 if input_resource.attrib['name'] == 'resource_url':
     #                     resource_ulr = bq.load(self.options.resource_url)
     #                     resource_name = resource_ulr.__dict__['name']
     #                     resource_dict = {'resource_url': resource_ulr, 'resource_name':resource_name}
@@ -148,7 +148,7 @@ class PythonScriptWrapper(object):
 
         self.inputs = self.get_xml_inputs(bq=bq)
 
-        # Saves and log input
+        # Saves and log input_resource
         for input in self.inputs:
 
             log.info("Process resource as %s" % (input['resource_name']))
@@ -163,7 +163,7 @@ class PythonScriptWrapper(object):
 
             # Saves resource to module container
             result = fetch_blob(bq, getattr(self.options, input['resource_name']), dest=os.path.join(cwd, input['resource_name']))
-            # result = fetch_blob(bq, self.options.resource_url, dest=os.path.join(cwd, input['resource_name']))
+            # result = fetch_blob(bq, self.options.resource_url, dest=os.path.join(cwd, input_resource['resource_name']))
             log.info(f"Output of fetch blob in pre_process : {result}")
 
             # SAMPLE LOG
@@ -277,7 +277,7 @@ class PythonScriptWrapper(object):
 
     def mex_parameter_parser(self, mex_xml):
         """
-            Parses input of the xml and add it to options attribute (unless already set)
+            Parses input_resource of the xml and add it to options attribute (unless already set)
 
             @param: mex_xml
         """
@@ -286,7 +286,7 @@ class PythonScriptWrapper(object):
             'tag[@name="inputs"]/tag[@name!="script_params"] | tag[@name="inputs"]/tag[@name="script_params"]/tag')
         if mex_inputs:
             for tag in mex_inputs:
-                if tag.tag == 'tag' and tag.get('type', '') != 'system-input':  # skip system input values
+                if tag.tag == 'tag' and tag.get('type', '') != 'system-input_resource':  # skip system input_resource values
                     if not getattr(self.options, tag.get('name', ''), None):
                         log.debug('Set options with %s as %s' % (tag.get('name', ''), tag.get('value', '')))
                         setattr(self.options, tag.get('name', ''), tag.get('value', ''))

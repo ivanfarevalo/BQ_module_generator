@@ -8,7 +8,7 @@ class XMLGenerator():
     def __init__(self, module_name):
         self.module_name = module_name
         # Read in template xml into string to and remove newlines for proper formatting.
-        with open('xml_template.xml', "r") as xml_template:
+        with open('xml_template_trial.xml', "r") as xml_template:
             xml_string = xml_template.read().replace("\n", "")
         # Build xml tree from formatted string.
         self.root = ET.fromstring(xml_string)
@@ -55,56 +55,77 @@ class XMLGenerator():
         #     </template>
         # </tag>
 
-    def add_input(self, input_var_name, input_name, type):
+    def add_input(self, type, input_name=None):
 
         # input_var_name = '_'.join(input_name.split()).lower()
 
         for child in self.root:
 
-            if child.attrib['name'] == 'inputs': #TODO Format the various input types correctly
+            if child.attrib['name'] == 'inputs': #TODO Format the various input_resource types correctly
                 if type == 'image':
-                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_var_name, 'type': 'resource'})
+                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_name, 'type': 'resource'})
                     template_tag = ET.SubElement(input_name_tag, 'template')
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': input_name})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'image'})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
-                elif type == 'blob':
-                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_var_name, 'type': 'resource'})
+                elif type == 'file':
+                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_name, 'type': 'resource'})
                     template_tag = ET.SubElement(input_name_tag, 'template')
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': input_name})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'file'})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
                 elif type == 'table':
-                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_var_name, 'type': 'resource'})
+                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_name, 'type': 'resource'})
                     template_tag = ET.SubElement(input_name_tag, 'template')
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': input_name})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'table'})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
                 elif type == 'mex':
-                    ET.SubElement(child, 'tag', attrib={'name': 'mex_url', 'type': 'system-input'})
+                    ET.SubElement(child, 'tag', attrib={'name': 'mex_url', 'type': 'system-input_resource'})
                 elif type == 'bisque_token':
-                    ET.SubElement(child, 'tag', attrib={'name': 'bisque_token', 'type': 'system-input'})
+                    ET.SubElement(child, 'tag', attrib={'name': 'bisque_token', 'type': 'system-input_resource'})
 
-    def add_output(self, output_var_name, output_name, type):
+    def add_output(self, output_name, type):
 
         # output_var_name = '_'.join(output_name.split()).lower()
 
         for child in self.root:
             if child.attrib['name'] == 'outputs':
                 if type == 'image':
-                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name, 'type': 'image'})
+                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_name, 'type': 'image'})
                     template_tag = ET.SubElement(output_name_tag, 'template')
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
-                if type == 'csv':
-                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name, 'type': 'table'})
-                    template_tag = ET.SubElement(output_name_tag, 'template')
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
-                if type == 'blob':
-                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name, 'type': 'resource'})
-                    template_tag = ET.SubElement(output_name_tag, 'template')
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
+
+                else:
+                    template_tag = child.find(".//*[@name='NonImage']/template")
+                    ET.SubElement(template_tag, 'tag', attrib={'name': output_name, 'type':type})
+
+                    # print(template_tag)
+                    # print('\n\n')
+                    #
+                    # a  = child.find(".//*[@name='Metadata']/template")
+                    # print(a)
+                    #
+                    # print('\n\n')
+                    # for c in child:
+                    #     if c.attrib['name'] == 'Metadata':
+                    #         print(list(c))
+                    #
+                    #         # template_tag = c.getchildre()
+                    #
+                    #
+                    #         print(dir(c))
+
+                # if type == 'table':
+                #     output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name, 'type': 'table'})
+                #     template_tag = ET.SubElement(output_name_tag, 'template')
+                #     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
+                # if type == 'file':
+                #     output_name_tag = ET.SubElement(child, 'tag', attrib={'name': output_var_name, 'type': 'resource'})
+                #     template_tag = ET.SubElement(output_name_tag, 'template')
+                #     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': output_name})
 
 
 
@@ -124,9 +145,9 @@ class XMLGenerator():
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
                 elif value == 'mex':
-                    ET.SubElement(child, 'tag', attrib={'name': 'mex_url', 'type': 'system-input'})
+                    ET.SubElement(child, 'tag', attrib={'name': 'mex_url', 'type': 'system-input_resource'})
                 elif value == 'bisque_token':
-                    ET.SubElement(child, 'tag', attrib={'name': 'bisque_token', 'type': 'system-input'})
+                    ET.SubElement(child, 'tag', attrib={'name': 'bisque_token', 'type': 'system-input_resource'})
 
             elif field == 'outputs' and child.attrib['name'] == 'outputs':
                 if value == 'image':
@@ -150,17 +171,27 @@ class XMLGenerator():
 
 
 if __name__ == '__main__':
-    module_name = 'EdgeDetection'
+    module_name = 'outputtagtest'
     authors = 'Ivan'
     description = 'Edge detector'
 
     BQ_module_xml = XMLGenerator(module_name)
 
     BQ_module_xml.xml_set_module_name()
-    BQ_module_xml.edit_xml('inputs', 'image')
+
+    BQ_module_xml.add_input('Np in', 'file')
+
+
+
+
+
+    # BQ_module_xml.edit_xml('inputs', 'image')
     BQ_module_xml.edit_xml('inputs', 'mex')
     BQ_module_xml.edit_xml('inputs', 'bisque_token')
-    BQ_module_xml.edit_xml('outputs', 'image', out_name='Edge Image')
+    # BQ_module_xml.edit_xml('outputs', 'image', out_name='Edge Image')
+
+    BQ_module_xml.add_output('Np out', 'file')
+
     BQ_module_xml.edit_xml('title', module_name)
     BQ_module_xml.edit_xml('authors', authors)
     BQ_module_xml.edit_xml('description', description)
