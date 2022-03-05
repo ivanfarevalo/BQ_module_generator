@@ -1,13 +1,10 @@
 import sys
-# import io
 from lxml import etree
 import xml.etree.ElementTree as ET
 import optparse
 import logging
 import os
-# import numpy as np
 
-# It is importing from source
 
 logging.basicConfig(filename='PythonScript.log', filemode='a', level=logging.DEBUG)
 log = logging.getLogger('bq.modules')
@@ -30,7 +27,7 @@ class ScriptError(Exception):
 
 class PythonScriptWrapper(object):
     def __init__(self):
-        for file in os.listdir(): # Might change it to read parameters from .JSON
+        for file in os.listdir(): # Might change it to read parameters from .JSON or from modulePath variable
             if file.endswith(".xml"):
                 # Get xml file name as module name
                 if hasattr(self, 'module_name'):
@@ -41,133 +38,105 @@ class PythonScriptWrapper(object):
         tree = ET.parse(self.module_name+'.xml')  # Load module xml as tree
         self.root = tree.getroot()  # Get root node of tree
 
+    def upload_results(self, bq):
+        """
+        Reads output specs from xml and uploads results to Bisque using correct service
+        """
 
-    # For very simple, image in image out case.  Will extend to more input_resource/output cases.
-    # def get_xml_data(self, field, out_xml_value='Default', bq=None):
-    #     xml_data = []
-    #
-    #     for node in self.root:  # Iterate tree to parse necessary information
-    #         # print(child.tag, child.attrib)
-    #         if field == 'inputs' and node.attrib['name'] == 'inputs':
-    #
-    #             for input_resource in node:
-    #                 if input_resource.attrib['name'] == 'resource_url':
-    #                     resource_ulr = bq.load(self.options.resource_url)
-    #                     resource_name = resource_ulr.__dict__['name']
-    #                     resource_dict = {'resource_url': resource_ulr, 'resource_name':resource_name}
-    #                     xml_data.append(resource_dict)
-    #
-    #         elif field == 'outputs' and node.attrib['name'] == 'outputs':
-    #
-    #             for output in node:
-    #                 if output.attrib['name'] == 'OutImage':
-    #                     output.set('value', out_xml_value)
-    #                     output_xml = ET.tostring(output).decode('utf-8')
-    #                     xml_data.append(output_xml)
-    #
-    #     log.info(f" xml data for {field} from wrapper is {xml_data}")
-    #     return xml_data
+        output_resources = []
+        non_image_value = {}
+        non_image_present = False
+        
+        # Get outputs tag and its nonimage child tag
+        outputs_tag = self.root.find("./*[@name='outputs']")
+        print(outputs_tag)
+        nonimage_tag = outputs_tag.find("./*[@name='NonImage']")
+        print(nonimage_tag.tag, nonimage_tag.attrib)
+        
+        # Upload each resource with the corresponding service
+        for resource in (nonimage_tag.findall(".//*[@type]") + outputs_tag.findall("./*[@type='image']")): 
+            print(resource.tag, resource.attrib)
+            print("NonImage type output with name %s" % resource.attrib['name'])
+            resource_name = resource.attrib['name']
+            resource_type = resource.attrib['type']
+            resource_path = self.output_data_path_dict[resource_name]
+            log.info(f"***** Uploading output {resource_type} '{resource_name}' from {resource_path} ...")
 
+            # Upload output resource to Bisque and get resource etree.Element
+            output_etree_Element = self.upload_service(bq, resource_path, data_type=resource_type)
+            log.info(f"***** Uploaded output {resource_type} '{resource_name}' to {output_etree_Element.get('value')}")
 
+            # Set the value attribute of the each resource's tag to its corresponding resource uri
+            resource.set('value', output_etree_Element.get('value'))
+            
+            # Append image outputs to output resources list
+            if resource in outputs_tag.findall("./*[@type='image']"):
+                output_resource_xml = ET.tostring(resource).decode('utf-8')
+                output_resources.append(output_resource_xml)
+            else:
+                non_image_present = True
+                non_image_value[resource_name] = output_etree_Element.get('value')
+        
+        # Append all nonimage outputs to NonImage tag and append it to output resource list
+        if non_image_present:
+            template_tag = nonimage_tag.find("./template")
+            nonimage_tag.remove(template_tag)
+            for resource in non_image_value:
+                ET.SubElement(nonimage_tag, 'tag', attrib={'name' : f"{resource}", 'type': 'resource', 'value': f"{non_image_value[resource]}"})
 
+            output_resource_xml = ET.tostring(nonimage_tag).decode('utf-8')
+            output_resources.append(output_resource_xml)
 
-    # log.debug('kw is: %s', str(kw))
-    # predictor_uniq = predictor_url.split('/')[-1]
-    # reducer_uniq = reducer_url.split('/')[-1]
-    # table_uniq = table_url.split('/')[-1]
-    #
-    # predictor_url = bq.service_url('blob_service', path=predictor_uniq)
-    # predictor_path = os.path.join(kw.get('stagingPath', ''), 'predictor.sav')
-    # predictor_path = bq.fetchblob(predictor_url, path=predictor_path)
-    #
-    # reducer_url = bq.service_url('blob_service', path=reducer_uniq)
-    # reducer_path = os.path.join(kw.get('stagingPath', ''), 'reducer.sav')
-    # reducer_path = bq.fetchblob(reducer_url, path=reducer_path)
-
-    def get_xml_outputs(self, out_xml_value):
-        xml_data = []
-
-        for node in self.root:  # Iterate tree to parse necessary information
-            # print(node.tag, node.attrib)
-            if node.attrib['name'] == 'outputs':
-                for output in node:
-                    if output.attrib['name'] == 'OutImage':
-                        output.set('value', out_xml_value)
-                        output_xml = ET.tostring(output).decode('utf-8')
-                        xml_data.append(output_xml)
-
-        log.info(f"***** Output XML data: {xml_data}")
-        return xml_data
-
-
-    def get_xml_inputs(self, bq): #TODO Not hardcoded resource_url
-        xml_data = []
-
-        for node in self.root:  # Iterate tree to parse necessary information
-            # print(node.tag, node.attrib)
-            if node.attrib['name'] == 'inputs':
-
-                for child in node.iter():
-                    # <tag name="resource_url" type="resource">
-                    # input_name = ''
-
-                    try:
-                        if (child.attrib['name'] and child.attrib['type'] == 'resource'):
-                            input_name = child.attrib['name']
-                    except KeyError:
-                        pass
-
-                    try:
-                        if (child.attrib['name'] == 'accepted_type' and child.attrib['value'] == 'image'):
-                            print("INPUT OF TYPE IMAGE!")
-
-                            # resource_url = bq.load(self.options.resource_url)
-                            log.info(f"***** Input XML data: {xml_data}")
-                            resource_url = bq.load(getattr(self.options, input_name))
-                            resource_name = resource_url.__dict__['name']
-                            resource_dict = {'resource_url': resource_url, 'resource_name': resource_name}
-                            xml_data.append(resource_dict)
-
-                    except KeyError:
-                        pass
-
-        log.info(f"***** Input XML data: {xml_data}")
+        log.debug(f"***** Output Resources xml : output_resources = {output_resources}")
         # SAMPLE LOG
-        # INFO:bq.modules:***** Input XML data: [{'resource_url': (image:http://128.111.185.163:8080/data_service/00-pkGCYS4SPCtQVcdZUUj4sX), 'resource_name': '500px-Manatee_at_Sea_World_Orlando_Mar_10.jpeg'}]
-        return xml_data
-
-    def pre_process(self, bq):
+        # ['<tag name="OutImage" type="image" value="http://128.111.185.163:8080/data_service/00-ExhzBeQiaX5F858qNjqXzM">\n               <template>\n                    <tag name="label" value="Edge Image" />\n               </template>\n          </tag>\n     ']
+        return output_resources
+    
+    
+    def fetch_input_resources(self, bq, inputs_dir_path): #TODO Not hardcoded resource_url
         """
-        Ingests and logs xml file inputs and outputs
+        Reads input resources from xml, fetches them from Bisque, and copies them to module container for inference
 
-        :param bq:
-        :return:
         """
 
-        log.info('Options: %s' % (self.options))
+        log.info('***** Options: %s' % (self.options))
+        
+        input_bq_objs = []
+        input_path_dict = {} # Dictionary that contains the paths of the input resources
+        
+        inputs_tag = self.root.find("./*[@name='inputs']")
+#        print(inputs_tag)
+        for input_resource in inputs_tag.findall("./*[@type='resource']"):
+            # for child in node.iter():
+            print(input_resource.tag, input_resource.attrib)
 
-        self.inputs = self.get_xml_inputs(bq=bq)
+            input_name = input_resource.attrib['name']
+            log.info(f"***** Processing resource named: {input_name}")
+            resource_obj = bq.load(getattr(self.options, input_name))
+            """
+            bq.load returns bqapi.bqclass.BQImage object. Ex:
+            resource_obj: (image:name=whale.jpeg,value=file://admin/2022-02-25/whale.jpeg,type=None,uri=http://128.111.185.163:8080/data_service/00-pkGCYS4SPCtQVcdZUUj4sX,ts=2022-02-25T17:05:13.289578,resource_uniq=00-pkGCYS4SPCtQVcdZUUj4sX)
 
-        # Saves and log input_resource
-        for input in self.inputs:
+            resource_obj: (resource:name=yolov5s.pt,type=None,uri=http://128.111.185.163:8080/data_service/00-D9e6xVPhU93JtZjZZtwkLm,ts=2022-02-26T01:08:26.198330,resource_uniq=00-D9e6xVPhU93JtZjZZtwkLm) (PythonScriptWrapper.py:137)
 
-            log.info("Process resource as %s" % (input['resource_name']))
-            log.info("Resource meta: %s" % (input['resource_url']))
-            cwd = os.getcwd()
-            log.info("Current work directory: %s" % (cwd))
+            resource_obj: (resource:name=test.npy,type=None,uri=http://128.111.185.163:8080/data_service/00-EC53Rcbj8do86aXpea2cgW,ts=2022-02-26T01:17:12.312780,resource_uniq=00-EC53Rcbj8do86aXpea2cgW) (PythonScriptWrapper.py:137)
+            """
 
-            # SAMPLE LOG
-            # INFO:bq.modules:Process resource as 500px-Manatee_at_Sea_World_Orlando_Mar_10.jpeg
-            # INFO:bq.modules:Resource meta: (image:name=500px-Manatee_at_Sea_World_Orlando_Mar_10.jpeg,value=file://admin/2022-02-25/500px-Manatee_at_Sea_World_Orlando_Mar_10.jpeg,type=None,uri=http://128.111.185.163:8080/data_service/00-pkGCYS4SPCtQVcdZUUj4sX,ts=2022-02-25T17:05:13.289578,resource_uniq=00-pkGCYS4SPCtQVcdZUUj4sX)
-            # INFO:bq.modules:Current work directory: /module
+            input_bq_objs.append(resource_obj)
+            log.info(f"***** resource_obj: {resource_obj}")
+            log.info(f"***** resource_obj.uri: {resource_obj.uri}")
+            log.info(f"***** type(resource_obj): {type(resource_obj)}")
 
-            # Saves resource to module container
-            result = fetch_blob(bq, getattr(self.options, input['resource_name']), dest=os.path.join(cwd, input['resource_name']))
-            # result = fetch_blob(bq, self.options.resource_url, dest=os.path.join(cwd, input_resource['resource_name']))
-            log.info(f"Output of fetch blob in pre_process : {result}")
+            # Append uri to dictionary of input paths
+            input_path_dict[input_name] = os.path.join(inputs_dir_path, resource_obj.name)
 
-            # SAMPLE LOG
-            # INFO:bq.modules:Output of fetch blob in pre_process : {'http://128.111.185.163:8080/data_service/00-pkGCYS4SPCtQVcdZUUj4sX': './500px-Manatee_at_Sea_World_Orlando_Mar_10.jpeg'}
+            # Saves resource to module container at specified dest path
+            fetch_blob_output = fetch_blob(bq, resource_obj.uri, dest=input_path_dict[input_name])
+            log.info(f"***** fetch_blob_output: {fetch_blob_output}") 
+        
+        log.info(f"***** Input path dictionary : {input_path_dict}")
+
+        return input_path_dict
 
 
     def run(self):
@@ -176,75 +145,41 @@ class PythonScriptWrapper(object):
 
         """
         bq = self.bqSession
-        try:
-            bq.update_mex('Pre-process the images')
-            self.pre_process(bq)
-        except (Exception, ScriptError) as e:
-            log.exception("Exception during pre_process")
-            bq.fail_mex(msg="Exception during pre-process: %s" % str(e))
+        log.info('***** self.options: %s' % (self.options))
+        
+        # Use current directory to store input and output data for now, if changed, might have to look at teardown funct too
+        inputs_dir_path = os.getcwd() 
+        outputs_dir_path = os.getcwd() 
 
+        # Fetch input resources
+        try:
+            bq.update_mex('Fetching inputs specified in xml')
+            input_path_dict = self.fetch_input_resources(bq, inputs_dir_path)
+        except (Exception, ScriptError) as e:
+            log.exception("***** Exception while fetching inputs specified in xml")
+            bq.fail_mex(msg="Exception while fetching inputs specified in xml: %s" % str(e))
             return
 
-        #        input_image, heatmap, covid, pna, normal= predict_label(log, self.image_name)
-        #        heatmap=np.transpose(heatmap, (1, 2, 0))
-        #        input_image=np.transpose(input_image, (1, 2, 0))
+        
+        # Run module from BQ_run_module and get get a dictionary that contains the paths to the module results
+        try:
+            bq.update_mex('Running module')
+            self.output_data_path_dict = run_module(input_path_dict, outputs_dir_path) 
+        except (Exception, ScriptError) as e:
+            log.exception("***** Exception while running module from BQ_run_module")
+            bq.fail_mex(msg="Exception while running module from BQ_run_module: %s" % str(e))
+            return
 
-        input_file_path = os.path.join(os.getcwd(), self.inputs[0]['resource_name'])
-        # output_folder_path = os.path.join(os.path.dirname(os.getcwd()), 'outputs')
-        output_folder_path = os.getcwd()
+        # Upload results to Bisque
+        try:
+            bq.update_mex('Uploading results to Bisque')
+            self.output_resources = self.upload_results(bq)
+        except (Exception, ScriptError) as e:
+            log.exception("***** Exception while uploading results to Bisque")
+            bq.fail_mex(msg="Exception while uploading results to Bisque: %s" % str(e))
+            return
 
-        out_data_path = run_module(input_file_path, output_folder_path)  # Path to output files HARDCODED FOR NOW
-        log.info("Output image path: %s" % out_data_path)
-
-        # SAMPLE LOG
-        # INFO:bq.modules:Output image path: /module/500px-Manatee_at_Sea_World_Orlando_Mar_10._out.jpg
-
-
-
-        #        img = nib.Nifti1Image(input_image*heatmap, np.eye(4))  # Save axis for data (just identity)
-        #
-        #        img.header.get_xyzt_units()
-        #        self.outfiles=self.image_name+'heatmap.nii'
-        #        img.to_filename(self.outfiles)  # Save as NiBabel file
-
-        #       z=input_image.shape[2]
-
-        self.bqSession.update_mex('Returning results')
-
-        bq.update_mex('Uploading Mask result')
-        self.out_image = self.upload_service(bq, out_data_path, data_type='image')
-        #         log.info('Total number of slices:{}.\nNumber of slices predicted as Covid:{}.\nNumber of slices predicted as PNA: {}\nNumber of slices predicted as Normal:{}'.format(z, covid, pna, normal))
-
-        #         self.output_resources.append(out_xml)
-
-        self.output_resources = self.get_xml_outputs(out_xml_value=(str(self.out_image.get('value'))))
-        # self.output_resources = self.get_xml_data('outputs', out_xml_value=(str(self.out_image.get('value'))))
-
-        # out_imgxml = """<tag name="EdgeImage" type="image" value="%s">
-        #                 <template>
-        #                   <tag name="label" value="Edge Image" />
-        #                 </template>
-        #               </tag>""" % (str(self.out_image.get('value')))
-
-        #        out_xml = """<tag name="Metadata">
-        #                    <tag name="Filename" type="string" value="%s"/>
-        #                    <tag name="Depth" type="string" value="%s"/>
-        #                     <tag name="Covid" type="string" value="%s"/>
-        #                     <tag name="Pneumonia" type="string" value="%s"/>
-        #                     <tag name="normal" type="string" value="%s"/>
-        #                     </tag>""" % (self.image_name, str(z), str(covid), str(pna), str(normal))
-
-        #        outputs = [out_imgxml, out_xml]
-        #         outputs = [out_imgxml]
-        log.debug(f"***** self.output_resources = {self.output_resources}")
-        # SAMPLE LOG
-        # ['<tag name="OutImage" type="image" value="http://128.111.185.163:8080/data_service/00-ExhzBeQiaX5F858qNjqXzM">\n               <template>\n                    <tag name="label" value="Edge Image" />\n               </template>\n          </tag>\n     ']
-
-
-        # save output back to BisQue
-        # for output in outputs:
-        #     self.output_resources.append(output)
-
+    
     def setup(self):
         """
         Pre-run initialization
@@ -277,7 +212,7 @@ class PythonScriptWrapper(object):
 
     def mex_parameter_parser(self, mex_xml):
         """
-            Parses input_resource of the xml and add it to options attribute (unless already set)
+            Parses input of the xml and add it to options attribute (unless already set)
 
             @param: mex_xml
         """
@@ -286,46 +221,16 @@ class PythonScriptWrapper(object):
             'tag[@name="inputs"]/tag[@name!="script_params"] | tag[@name="inputs"]/tag[@name="script_params"]/tag')
         if mex_inputs:
             for tag in mex_inputs:
-                if tag.tag == 'tag' and tag.get('type', '') != 'system-input_resource':  # skip system input_resource values
+                if tag.tag == 'tag' and tag.get('type', '') != 'system-input':  # skip system input values
                     if not getattr(self.options, tag.get('name', ''), None):
                         log.debug('Set options with %s as %s' % (tag.get('name', ''), tag.get('value', '')))
                         setattr(self.options, tag.get('name', ''), tag.get('value', ''))
         else:
             log.debug('No Inputs Found on MEX!')
 
-    def uploadimgservice(self, bq, filename):
-        """
-        Upload mask to image_service upon post process
-        """
-        mex_id = bq.mex.uri.split('/')[-1]
-
-        log.info('Up Mex: %s' % (mex_id))
-        log.info('Up File: %s' % (filename))
-        resource = etree.Element(
-            'image', name='ModuleExecutions/EdgeDetection/' + filename)
-        t = etree.SubElement(resource, 'tag', name="datetime", value='time')
-        log.info('Creating upload xml data: %s ' %
-                 str(etree.tostring(resource, pretty_print=True)))
-        # os.path.join("ModuleExecutions","CellSegment3D", filename)
-        filepath = filename
-        # use import service to /import/transfer activating import service
-        r = etree.XML(bq.postblob(filepath, xml=resource)).find('./')
-        if r is None or r.get('uri') is None:
-            bq.fail_mex(msg="Exception during upload results")
-        else:
-            log.info('Uploaded ID: %s, URL: %s' %
-                     (r.get('resource_uniq'), r.get('uri')))
-            bq.update_mex('Uploaded ID: %s, URL: %s' %
-                          (r.get('resource_uniq'), r.get('uri')))
-            self.furl = r.get('uri')
-            self.fname = r.get('name')
-            resource.set('value', self.furl)
-
-        return resource
-
     def upload_service(self, bq, filename, data_type='image'):
         """
-        Upload resource to specific service (image, table, blob) upon post process
+        Upload resource to specific service upon post process
         """
         mex_id = bq.mex.uri.split('/')[-1]
 

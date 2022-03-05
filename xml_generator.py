@@ -67,7 +67,7 @@ class XMLGenerator():
                     template_tag = ET.SubElement(input_name_tag, 'template')
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': input_name})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'image'})
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
+                    # ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
                 elif type == 'file':
                     input_name_tag = ET.SubElement(child, 'tag', attrib={'name': input_name, 'type': 'resource'})
@@ -80,7 +80,7 @@ class XMLGenerator():
                     template_tag = ET.SubElement(input_name_tag, 'template')
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': input_name})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'table'})
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
+                    # ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
                     ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
                 elif type == 'mex':
                     ET.SubElement(child, 'tag', attrib={'name': 'mex_url', 'type': 'system-input_resource'})
@@ -180,10 +180,6 @@ if __name__ == '__main__':
     BQ_module_xml.xml_set_module_name()
 
     BQ_module_xml.add_input('Np in', 'file')
-
-
-
-
 
     # BQ_module_xml.edit_xml('inputs', 'image')
     BQ_module_xml.edit_xml('inputs', 'mex')

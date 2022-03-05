@@ -36,6 +36,8 @@ def create_config_file():
         json.dump(config_data, json_data_file)
 
 
+
+
 @bqmod.command("init")
 @click.pass_context
 def init(ctx):
@@ -75,8 +77,8 @@ def set(ctx, name, author, description):
         click.echo(ctx.invoked_subcommand)
 
 
-def check_var_name(name):
-    return '_'.join(name.split()).lower()
+# def check_var_name(name):
+#     return '_'.join(name.split()).lower()
 
 
 @bqmod.command("inputs", no_args_is_help=True)
@@ -85,7 +87,7 @@ def check_var_name(name):
 @click.option("--file", "-f", is_flag=True, default=False, help="Flag to indicate an input_resource file type that is not image")
 @click.option("--input_name", "-n", required=True, default=None, help="Name of the input_resource to be shown in Bisque result. Ex. Input Image")
 @click.pass_context
-def inputs(ctx, image, file, table, input_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE INPUT
+def inputs(ctx, image, table, file, input_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE INPUT
     """Sets the type of input_resource.
 
     Supported inputs include : --image, --file, --table"""
@@ -105,7 +107,7 @@ def inputs(ctx, image, file, table, input_name):  #  NEED TO ADD FUNCTIONALITY T
 
         if ctx.obj['Inputs'][input_name]:
         # if check_var_name(ctx.obj['Inputs'][input_name]) == check_var_name(input_name):
-            if click.confirm('An input_resource with the name "%s" has already been set (case/whitespace-insensitive). Would you like to overwrite?' % input_name, abort=True):
+            if click.confirm('An input_resource with the name "%s" has already been set. Would you like to overwrite?' % input_name, abort=True):
                 ctx.obj['Inputs'][input_name] = input_type
     except KeyError:
         ctx.obj['Inputs'][input_name] = input_type
@@ -143,7 +145,7 @@ def outputs(ctx, image, table, file, output_name):  #  NEED TO ADD FUNCTIONALITY
         if ctx.obj['Outputs'][output_name]:
             # if check_var_name(ctx.obj['Inputs'][input_name]) == check_var_name(input_name):
             if click.confirm(
-                    'An input_resource with the name "%s" has already been set (case/whitespace-insensitive). Would you like to overwrite?' % output_name,
+                    'An input_resource with the name "%s" has already been set. Would you like to overwrite?' % output_name,
                     abort=True):
                 ctx.obj['Outputs'][output_name] = output_type
     except KeyError:
@@ -190,7 +192,6 @@ def create_module(ctx):
     """ Create module files"""
 
     BQ_module_xml = XMLGenerator(ctx.obj['Name'])
-
     BQ_module_xml.xml_set_module_name()
 
     for input_name in ctx.obj['Inputs']:
