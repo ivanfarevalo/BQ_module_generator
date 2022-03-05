@@ -1,5 +1,5 @@
 # Bisque Module Generator
-##### V1.0.4
+##### V2.0.0
 
 Standardizes and automates the process of creating modules that can be integrated in the Bisque web application.
 This command line interface (CLI) currently supports any input types supported by Bisque but can only display image and table outputs. 

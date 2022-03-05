@@ -37,7 +37,6 @@ def create_config_file():
 
 
 
-
 @bqmod.command("init")
 @click.pass_context
 def init(ctx):
