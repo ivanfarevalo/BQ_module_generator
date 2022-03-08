@@ -39,7 +39,7 @@ save all outputs to `output_folder_path`, ***AND return the `outputs_path_dict`*
 The `input_path_dict` parameter is a dictionary with input names as keys and their corresponding paths as values. 
 ***It is important to note that these input names will be the labels that Bisque will display in your module web page.***
 
-![Bisque](https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/thumbnail.jpg)
+![Input Example](https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/input_ex.png)
 
 ***These input names must also match the input names specified with the cli in a later step.*** This will become clear later, 
 for now, just choose some descriptive 
@@ -61,7 +61,7 @@ output_paths_dict = {}
 output_paths_dict['Output Image'] = output_img_path
 ```
 
-![Bisque](https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/thumbnail.jpg)
+![Output Example](https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/output_ex.png)
 
 These output paths must also be the same names used to specify 
 outputs with the cli at a later step. The `run_module` function must return this dictionary of output paths in order for
@@ -243,7 +243,7 @@ All commands must be ran in your `{ModuleName}` folder and are preceded with the
 ***It is crucial to note that the names for inputs and outputs MUST match the dictionary keys of input_path_dict and 
 output_paths_dict respectively!*** Failure to ensure this will result in an error at runtime.
 
-![Bisque](https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/thumbnail.jpg)
+![Dictionary Keys Example](https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/dict_name_ex.png)
 
 Here's an example of creating a simple Edge Detection module:
 
