@@ -60,11 +60,13 @@ class PythonScriptWrapper(object):
             resource_name = resource.attrib['name']
             resource_type = resource.attrib['type']
             resource_path = self.output_data_path_dict[resource_name]
-            log.info(f"***** Uploading output {resource_type} '{resource_name}' from {resource_path} ...")
+            # log.info(f"***** Uploading output {resource_type} '{resource_name}' from {resource_path} ...")
+            log.info("***** Uploading output %s '%s' from %s ..." % (resource_type, resource_name, resource_path))
 
             # Upload output resource to Bisque and get resource etree.Element
             output_etree_Element = self.upload_service(bq, resource_path, data_type=resource_type)
-            log.info(f"***** Uploaded output {resource_type} '{resource_name}' to {output_etree_Element.get('value')}")
+            # log.info(f"***** Uploaded output {resource_type} '{resource_name}' to {output_etree_Element.get('value')}")
+            log.info("***** Uploaded output %s '%s' to %s" % (resource_type, resource_name, output_etree_Element.get('value')))
 
             # Set the value attribute of the each resource's tag to its corresponding resource uri
             resource.set('value', output_etree_Element.get('value'))
@@ -82,12 +84,14 @@ class PythonScriptWrapper(object):
             template_tag = nonimage_tag.find("./template")
             nonimage_tag.remove(template_tag)
             for resource in non_image_value:
-                ET.SubElement(nonimage_tag, 'tag', attrib={'name' : f"{resource}", 'type': 'resource', 'value': f"{non_image_value[resource]}"})
+                # ET.SubElement(nonimage_tag, 'tag', attrib={'name' : f"{resource}", 'type': 'resource', 'value': f"{non_image_value[resource]}"})
+                ET.SubElement(nonimage_tag, 'tag', attrib={'name' : "%s" % resource, 'type': 'resource', 'value': "%s" % non_image_value[resource]})
 
             output_resource_xml = ET.tostring(nonimage_tag).decode('utf-8')
             output_resources.append(output_resource_xml)
 
-        log.debug(f"***** Output Resources xml : output_resources = {output_resources}")
+        # log.debug(f"***** Output Resources xml : output_resources = {output_resources}")
+        log.debug("***** Output Resources xml : output_resources = %s" % output_resources)
         # SAMPLE LOG
         # ['<tag name="OutImage" type="image" value="http://128.111.185.163:8080/data_service/00-ExhzBeQiaX5F858qNjqXzM">\n               <template>\n                    <tag name="label" value="Edge Image" />\n               </template>\n          </tag>\n     ']
         return output_resources
@@ -111,7 +115,8 @@ class PythonScriptWrapper(object):
             print(input_resource.tag, input_resource.attrib)
 
             input_name = input_resource.attrib['name']
-            log.info(f"***** Processing resource named: {input_name}")
+            # log.info(f"***** Processing resource named: {input_name}")
+            log.info("***** Processing resource named: %s" % input_name)
             resource_obj = bq.load(getattr(self.options, input_name))
             """
             bq.load returns bqapi.bqclass.BQImage object. Ex:
@@ -123,18 +128,23 @@ class PythonScriptWrapper(object):
             """
 
             input_bq_objs.append(resource_obj)
-            log.info(f"***** resource_obj: {resource_obj}")
-            log.info(f"***** resource_obj.uri: {resource_obj.uri}")
-            log.info(f"***** type(resource_obj): {type(resource_obj)}")
+            # log.info(f"***** resource_obj: {resource_obj}")
+            log.info("***** resource_obj: %s" % resource_obj)
+            # log.info(f"***** resource_obj.uri: {resource_obj.uri}")
+            log.info("***** resource_obj.uri: %s" % resource_obj.uri)
+            # log.info(f"***** type(resource_obj): {type(resource_obj)}")
+            log.info("***** type(resource_obj): %s" % type(resource_obj))
 
             # Append uri to dictionary of input paths
             input_path_dict[input_name] = os.path.join(inputs_dir_path, resource_obj.name)
 
             # Saves resource to module container at specified dest path
             fetch_blob_output = fetch_blob(bq, resource_obj.uri, dest=input_path_dict[input_name])
-            log.info(f"***** fetch_blob_output: {fetch_blob_output}") 
-        
-        log.info(f"***** Input path dictionary : {input_path_dict}")
+            # log.info(f"***** fetch_blob_output: {fetch_blob_output}")
+            log.info("***** fetch_blob_output: %s"  % fetch_blob_output)
+
+        # log.info(f"***** Input path dictionary : {input_path_dict}")
+        log.info("***** Input path dictionary : %s" % input_path_dict)
 
         return input_path_dict
 
