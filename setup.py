@@ -5,7 +5,7 @@ setup(
     version='0.1.0',
     py_modules=['bqmodule'],
     install_requires=[
-        'Click',
+        'Click', 'wget', 'markdown'
     ],
     entry_points={
         'console_scripts': [

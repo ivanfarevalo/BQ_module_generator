@@ -1,5 +1,8 @@
 import click
+import markdown
+import os
 import json
+import wget
 from xml_generator import XMLGenerator
 
 
@@ -13,10 +16,11 @@ def bqmod(ctx):
     For a comprehensive guide go here: https://github.com/ivanfarevalo/BQ_module_generator
     Step 1: Create bqconfig file with 'bqmod init'
     Step 2: Set module name, author, and short description with 'bqmod set'
-    Step 3: Set input_resource types with 'bqmod inputs'
+    Step 3: Set input resource types and names with 'bqmod inputs'
     Step 4: Set output types and names with 'bqmod outputs'
     Step 5: Review module configurations with 'bqmod summary'
     Step 6: Create module files with 'bqmod create_module'
+    Step 7: Generate help.html from help.md with 'bqmod gen_help_html'
     """
     if ctx.invoked_subcommand == 'init':
         pass
@@ -26,7 +30,11 @@ def bqmod(ctx):
                 config = json.load(json_data_file)
                 ctx.obj = config
         except IOError:
-            click.echo("bqconfig.json not in folder, initialize a bqconfig file with `bqmod init`")
+            raise click.UsageError("No configuration file 'bqconfig.json' found in %s."
+                                   " All bqmod commands must be ran from your {ModuleName} folder."
+                                   " Navigate to your {ModuleName} folder and try again or initialize a bqconfig "
+                                   "file with `bqmod init` if you  haven't done so." % os.getcwd(), ctx=ctx)
+
 
 
 def create_config_file():
@@ -36,6 +44,42 @@ def create_config_file():
         json.dump(config_data, json_data_file)
 
 
+def download_files(): #TODO help url
+    """ Download necessary files from repo"""
+    python_wrapper_url = "https://raw.githubusercontent.com/ivanfarevalo/BQ_module_generator/main/PythonScriptWrapper.py"
+    xml_template_url = "https://raw.githubusercontent.com/ivanfarevalo/BQ_module_generator/main/xml_template"
+    runtime_cfg_url = "https://raw.githubusercontent.com/ivanfarevalo/BQ_module_generator/main/runtime-module.cfg"
+    thumbnail_url = "https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/thumbnail.jpg"
+    help_url = "https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/help.md"
+    # bqapi_url = "https://github.com/ivanfarevalo/BQ_module_generator/archive/main/bqapi.zip"
+
+    cwd = os.getcwd()
+    python_wrapper_path = os.path.join(cwd, 'PythonScriptWrapper.py')
+    xml_template_path = os.path.join(cwd, 'xml_template.xml')
+    runtime_cfg_path = os.path.join(cwd, 'runtime-module.cfg')
+
+    if not os.path.exists(python_wrapper_path):
+        wget.download(python_wrapper_url, python_wrapper_path)
+    if not os.path.exists(xml_template_path):
+        # wget.download(xml_template_url, xml_template_path)
+        pass
+    if not os.path.exists(runtime_cfg_path):
+        wget.download(runtime_cfg_url, runtime_cfg_path)
+
+    # Create public folder with thumbnail icon and help html
+    public_dir_path = os.path.join(cwd, 'public')
+    if not os.path.exists(public_dir_path):
+        os.mkdir(public_dir_path)
+        wget.download(thumbnail_url, os.path.join(public_dir_path, 'thumbnail.jpg'))
+        wget.download(help_url, os.path.join(public_dir_path, 'help.md'))
+
+    # Create bqapi folder and pull data
+    # bqapi_dir_path = os.path.join(cwd, 'bqapi')
+    # if not os.path.exists(bqapi_dir_path):
+    #     os.mkdir(bqapi_dir_path)
+    #     wget.download(bqapi_url, bqapi_dir_path)
+
+
 
 @bqmod.command("init")
 @click.pass_context
@@ -43,13 +87,17 @@ def init(ctx):
     """  Initializes a bqmodule config file as bqconfig.json
 
     If one already exits, prompts user if they would like to overwrite it"""
-    try:
-        with open('bqconfig.json') as _ :
-            if click.confirm('Bqmodule config file already in directory. Would you like to overwrite?', abort=True):
-                create_config_file()
 
-    except IOError:
-        create_config_file()
+    if click.confirm('bqmod init will pull files into current directory, are you in your {ModuleName} folder?', abort=True):
+        try:
+            with open('bqconfig.json') as _ :
+                if click.confirm('Bqmodule config file already in directory. Would you like to overwrite?', abort=True):
+                    create_config_file()
+                    download_files()
+
+        except IOError:
+            create_config_file()
+            download_files()
 
 
 @bqmod.command("set", no_args_is_help=True)
@@ -59,7 +107,7 @@ def init(ctx):
 # @click.option("--base_docker", "-b", default=None, help="Base docker image used to containarize source code") # TODO
 @click.pass_context
 def set(ctx, name, author, description):
-    """ Set name of module, author, and short description"""
+    """ Set name of module, authors, and short description"""
 
     if name:
         ctx.obj['Name'] = name
@@ -72,7 +120,7 @@ def set(ctx, name, author, description):
         with open("bqconfig.json", "w") as json_data_file:
             json.dump(ctx.obj, json_data_file)
     else:
-        click.echo("Need to include at least on option [--name --author --description]")
+        click.echo("Need to include at least on option: --name, --author, --description")
         click.echo(ctx.invoked_subcommand)
 
 
@@ -81,15 +129,17 @@ def set(ctx, name, author, description):
 
 
 @bqmod.command("inputs", no_args_is_help=True)
-@click.option("--image", "-i", is_flag=True, default=False, help="Flag to indicate input_resource of type image")
-@click.option("--table", "-t", is_flag=True, default=False, help="Flag to indicate input_resource of type table")
-@click.option("--file", "-f", is_flag=True, default=False, help="Flag to indicate an input_resource file type that is not image")
-@click.option("--input_name", "-n", required=True, default=None, help="Name of the input_resource to be shown in Bisque result. Ex. Input Image")
+@click.option("--image", "-i", is_flag=True, default=False, help="Flag to indicate input of type image")
+@click.option("--table", "-t", is_flag=True, default=False, help="Flag to indicate input of type table")
+@click.option("--file", "-f", is_flag=True, default=False, help="Flag to indicate an input file type that is not image")
+@click.option("--name", "-n", required=True, default=None, help="Descriptive name of the input resource to be processed by Bisque. Ex. 'Input Image'")
 @click.pass_context
-def inputs(ctx, image, table, file, input_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE INPUT
-    """Sets the type of input_resource.
+def inputs(ctx, image, table, file, name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE INPUT
+    """Sets the type of input.
 
-    Supported inputs include : --image, --file, --table"""
+    \b
+    Supported inputs include : --image, --file, --table
+    Ex. bqmod inputs --image --name "Segmented Image" """
 
     if image:
         input_type = 'image'
@@ -101,15 +151,15 @@ def inputs(ctx, image, table, file, input_name):  #  NEED TO ADD FUNCTIONALITY T
         # raise click.BadOptionUsage(image, 'You must specify an input_resource type. Use bqmod inputs --help for more info', ctx=ctx)
         raise click.UsageError('Must include input_resource type: --image, --table, --file', ctx=ctx)
 
-    # input_var_name = check_var_name(input_name)
+    # input_var_name = check_var_name(name)
     try:
 
-        if ctx.obj['Inputs'][input_name]:
-        # if check_var_name(ctx.obj['Inputs'][input_name]) == check_var_name(input_name):
-            if click.confirm('An input_resource with the name "%s" has already been set. Would you like to overwrite?' % input_name, abort=True):
-                ctx.obj['Inputs'][input_name] = input_type
+        if ctx.obj['Inputs'][name]:
+        # if check_var_name(ctx.obj['Inputs'][name]) == check_var_name(name):
+            if click.confirm('An input_resource with the name "%s" has already been set. Would you like to overwrite?' % name, abort=True):
+                ctx.obj['Inputs'][name] = input_type
     except KeyError:
-        ctx.obj['Inputs'][input_name] = input_type
+        ctx.obj['Inputs'][name] = input_type
 
 
     with open("bqconfig.json", "w") as json_data_file:
@@ -118,16 +168,16 @@ def inputs(ctx, image, table, file, input_name):  #  NEED TO ADD FUNCTIONALITY T
 
 @bqmod.command("outputs", no_args_is_help=True)
 @click.option("--image", "-i", is_flag=True, default=False, help="Flag to indicate output of type image") # NEED TO ADD TABLE FUNCT
-@click.option("--table", "-t", is_flag=True, default=False, help="Flag to indicate table output which will be uploaded to files in Bisque")
-@click.option("--file", "-f", is_flag=True, default=False, help="Flag to indicate a file output which will be uploaded to files in Bisque")
-@click.option("--output_name", "-n", required=True, default=None, help="Name of the output to be shown in Bisque result. Ex. Segmented Image")
+@click.option("--table", "-t", is_flag=True, default=False, help="Flag to indicate table output")
+@click.option("--file", "-f", is_flag=True, default=False, help="Flag to indicate a file output")
+@click.option("--name", "-n", required=True, default=None, help="Descriptive name of the output to be shown in Bisque result. Ex. 'Segmented Image'")
 @click.pass_context
-def outputs(ctx, image, table, file, output_name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE OUTPUT
+def outputs(ctx, image, table, file, name):  #  NEED TO ADD FUNCTIONALITY TO CHANGE OUTPUT
     """Set the types of outputs and their respective output names.
 
         \b
         Supported outputs include : --image, --table, --file
-        Ex. bqmod outputs --image --output_name "Segmented Image" """
+        Ex. bqmod outputs --image --name "Segmented Image" """
 
     if image:
         output_type = 'image'
@@ -138,17 +188,17 @@ def outputs(ctx, image, table, file, output_name):  #  NEED TO ADD FUNCTIONALITY
     else:
         raise click.UsageError('Must include an output type: --image, --table, --file', ctx=ctx)
 
-    # output_var_name = check_var_name(output_name)
+    # output_var_name = check_var_name(name)
     try:
 
-        if ctx.obj['Outputs'][output_name]:
+        if ctx.obj['Outputs'][name]:
             # if check_var_name(ctx.obj['Inputs'][input_name]) == check_var_name(input_name):
             if click.confirm(
-                    'An input_resource with the name "%s" has already been set. Would you like to overwrite?' % output_name,
+                    'An input_resource with the name "%s" has already been set. Would you like to overwrite?' % name,
                     abort=True):
-                ctx.obj['Outputs'][output_name] = output_type
+                ctx.obj['Outputs'][name] = output_type
     except KeyError:
-        ctx.obj['Outputs'][output_name] = output_type
+        ctx.obj['Outputs'][name] = output_type
 
     with open("bqconfig.json", "w") as json_data_file:
         json.dump(ctx.obj, json_data_file)
@@ -185,10 +235,27 @@ def create_module_old(ctx):
     click.secho("{%s.xml created" % ctx.obj['Name'], fg='green')
 
 
+@bqmod.command("gen_help_html")
+def gen_help_html():
+    public_dir = os.path.join(os.getcwd(), 'public')
+
+    try:
+        with open(os.path.join(public_dir, 'help.md'), 'r') as f:
+            text = f.read()
+            html = markdown.markdown(text)
+
+        with open(os.path.join(public_dir, 'help.html'), 'w') as f:
+            f.write(html)
+    except FileNotFoundError:
+        raise click.FileError('No markdown help file found at %s' % public_dir)
+
+
+
 @bqmod.command("create_module")
 @click.pass_context
 def create_module(ctx):
     """ Create module files"""
+
 
     BQ_module_xml = XMLGenerator(ctx.obj['Name'])
     BQ_module_xml.xml_set_module_name()

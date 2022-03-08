@@ -8,7 +8,7 @@ class XMLGenerator():
     def __init__(self, module_name):
         self.module_name = module_name
         # Read in template xml into string to and remove newlines for proper formatting.
-        with open('xml_template_trial.xml', "r") as xml_template:
+        with open('xml_template', "r") as xml_template:
             xml_string = xml_template.read().replace("\n", "")
         # Build xml tree from formatted string.
         self.root = ET.fromstring(xml_string)

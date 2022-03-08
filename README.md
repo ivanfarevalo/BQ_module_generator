@@ -2,7 +2,9 @@
 ##### V2.0.0
 
 Standardizes and automates the process of creating modules that can be integrated in the Bisque web application.
-This command line interface (CLI) currently supports any input types supported by Bisque but can only display image and table outputs. 
+This command line interface (CLI) supports multiple inputs and outputs of type image, table or file. Output images will be 
+displayed in the module results section in Bisque while tables and file outputs will have links to their 
+respective resource service where they can be downloaded and visualized.  
 Custom outputs or interactive parameters will require users to manually edit some files.
 Regardless of your application, it is a good idea to follow this guide and use the CLI to automate a big part of the 
 process and avoid common bugs. Once you have reached the end of this guide, if you need more customization, please take 
@@ -22,61 +24,129 @@ Before cloning this repo, structure your module in the following manner.
             -- {source_code}
             -- BQ_run_module.py
 ```
-You should create a `Modules` folder which will only  contain the modules that you wish to test in Bisque.
-You should name your `{ModuleName}` folder how you would like your module name to appear in bisque, for ex. `EdgeDetection`.
+You should create a `Modules` folder which will only contain the modules that you wish to test in Bisque.
+You should name your `{ModuleName}` folder how you would like your module to appear in bisque, for ex. `EdgeDetection`.
 Create a folder named `src` and place all your source code inside it. Finally, create a python file named `BQ_run_module.py` inside the `src` folder. 
 
 #### BQ_run_module.py
-Include all necessary data pre-processing 
-code in ```BQ_run_module.py``` as well as a function named ```run_module``` that will take ```input_file_path```, ```output_folder_path```, 
-and any other tunable parameters to run your algorithm. For now this tunable parameters **must have a default value.** This function should load input data from the ```input_file_path``` parameters 
-, save any outputs to the ```output_folder_path```, ***AND return the output file path***. A sample file is shown below:
+Include all necessary data reading and pre-processing 
+code in `BQ_run_module.py` as well as a function named `run_module` that will take `input_path_dict` and `output_folder_path`.
+Hyper parameters for running the module will have to be hardcoded for now but future releases will extend functionality  for theses as well. 
+This function should load input resources from `input_path_dict`, do any preprocessing steps, run the algorithm,
+save all outputs to `output_folder_path`, ***AND return the `outputs_path_dict`***.
+
+##### input_path_dict
+The `input_path_dict` parameter is a dictionary with input names as keys and their corresponding paths as values. 
+***It is important to note that these input names will be the labels that Bisque will display in your module web page.***
+
+![Bisque](https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/thumbnail.jpg)
+
+***These input names must also match the input names specified with the cli in a later step.*** This will become clear later, 
+for now, just choose some descriptive 
+and unique input names that you would like Bisque to display in the module web page. You will use these input names to 
+index the `input_path_dict` dictionary and load each resource from its respective path. Ex:
+```python
+input_img_path = input_path_dict['Input Image']
+img = cv2.imread(input_img_path, 0)
 ```
+
+##### output_folder_path
+The `output_folder_path` parameter is a path to the directory where output results should be saved. 
+
+##### output_paths_dict
+You should save all output result paths into a dictionary with descriptive and unique output names as keys. ***These 
+output names will be used by Bisque as labels in your module results web page.*** Ex:
+```bash
+output_paths_dict = {}
+output_paths_dict['Output Image'] = output_img_path
+```
+
+![Bisque](https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/thumbnail.jpg)
+
+These output paths must also be the same names used to specify 
+outputs with the cli at a later step. The `run_module` function must return this dictionary of output paths in order for
+Bisque to read and post results back to the module web page.
+
+A sample BQ_run_module.py is shown below:
+```python
 import cv2
 import os
-from my_source_code import canny_detector
+from detection import canny_detector
 
-# Tunable parameters must have defaults!
-def run_module(input_file_path, output_folder_path, min_hysteresis=10, max_hysteresis=100): 
-
+# input_path_dict will have input file paths with keys corresponding to the input names set in the cli.
+def run_module(input_path_dict, output_folder_path, min_hysteresis=100, max_hysteresis=200):
+    """
+    This function should load input resources from input_path_dict, do any pre-processing steps, run the algorithm,
+    save all outputs to output_folder_path, AND return the outputs_path_dict.
+    
+    :param input_path_dict: Dictionary of input resource paths indexed by input names. 
+    :param output_folder_path: Directory where to save output results.
+    :param min_hysteresis: Tunable parameter must have default values.
+    :param max_hysteresis: Tunable parameter  must have default values.
+    :return: Dictionary of output result paths.
+    """
+    
     ##### Preprocessing #####
-    img = cv2.imread(input_file_path, 0)
-    
-    ##### Run algorithm #####
-    edges_detected = canny_detector(img, min_hysteresis, max_hysteresis)
-    
-    ##### Save output #####
-    
-    # Get filename
-    file_name = os.path.split(input_file_path)[-1][:-4]
-    
-    # Generate desired output file name and path
-    output_file_path = f"{output_folder_path}/{file_name}_out.png"
-    cv2.imwrite(output_file_path, edges_detected)
-    
-    ##### Return output file path #####  -> Important step
-    return output_file_path
-    
-if __name__ == '__main__':
-    # Some code to test implementation, test with absolute paths to avoid bugs
-    
-    root_folder_path = os.path.dirname(os.path.abspath(__file__)) # Absolute path to parent directory 
-    input_file_path = os.path.join(root_folder_path, 'bob.jpg')
-    output_folder_path = root_folder_path
 
-    output_file_path = run_module(input_file_path, output_folder_path, 100, 200)
-    print("Output file saved to: %s" % output_file_path)
+    # Get input file paths from dictionary
+    input_img_path = input_path_dict['Input Image'] # KEY MUST BE DESCRIPTIVE, UNIQUE, AND MATCH INPUT NAME SET IN CLI
+
+    # Load data
+    img = cv2.imread(input_img_path, 0)
+
+    ##### Run algorithm #####
+
+    edges_detected = canny_detector(img, min_hysteresis, max_hysteresis)
+
+
+    ##### Save output #####
+
+    # Get filename
+    input_img_name = os.path.split(input_img_path)[-1][:-4]
+
+    # Generate desired output file names and paths
+    output_img_path = "%s/%s_out.jpg" % (output_folder_path, input_img_name)
+
+    # Save output files
+    cv2.imwrite(output_img_path, edges_detected)
+
+    # Create dictionary of output paths
+    output_paths_dict = {}
+    output_paths_dict['Output Image'] = output_img_path  # KEY MUST BE DESCRIPTIVE, UNIQUE, AND MATCH OUTPUT NAME SET IN CLI
+
+    ##### Return output paths dictionary #####  -> IMPORTANT STEP
+    return output_paths_dict
+
+if __name__ == '__main__':
+    # Place some code to test implementation
     
+    # Define input_path_dict and output_folder_path
+    input_path_dict = {}
+    current_directory = os.getcwd()
+    # Place test image in current directory
+    input_path_dict['Input Image'] = os.path.join(current_directory,'test_image.jpg') # KEY MUST MATCH INPUT NAME SET IN CLI
+    output_folder_path = current_directory
+    
+    # Run algorithm and return output_paths_dict
+    output_paths_dict = run_module(input_path_dict, output_folder_path, min_hysteresis=100, max_hysteresis=200)
+    
+    # Get outPUT file path from dictionary
+    output_img_path = output_paths_dict['Output Image'] # KEY MUST MATCH OUTPUT NAME SET IN CLI
+    # Load data
+    out_img = cv2.imread(output_img_path, 0)
+    # Display output image and ensure correct output
+    cv2.imshow("Results",out_img)
 ```
 
 #### Containerizing application 
 
-Test your `run_module` function by placing an input file in the `src` folder, 
-calling `python BQ_run_module.py` with the `input_file_path` pointing to the absolute test file path 
-and the  `output_folder_path` pointing to the absolute path to the `src` folder. Once `BQ_run_module.py` is
+Test your `BQ_run_module.py` file by writing some test code in the `if __name__ == '__main__':` code block. 
+A simple test implementation is shown above. Once `BQ_run_module.py` is
 working as expected, you can containerize your application with docker. Follow the instructions on [downloading docker](https://www.docker.com/products/docker-desktop),
 [creating a Dockerfile](https://docker-curriculum.com/#dockerfile), and [running a container](https://docker-curriculum.com/#docker-run). 
-Here is an example of a Dockerfile for a simple edge detection module.
+Here is an example of a Dockerfile for a simple edge detection module. 
+
+***You must include the section `Copy Source Code` in your own Dockerfile.*** 
 
 ```
 # ==================================================================
@@ -106,7 +176,7 @@ COPY src /module/src
 Create your image by running `docker build -t {modulemame}:v0.0.0 .` in your `{ModuleName}` folder. Note that docker
 images are only allowed to have lowercase letters.
 Run your docker container with `docker run -it {modulemame}:v0.0.0 bash`
-and test your application inside the container by calling ```python BQ_run_module.py```. 
+and test your application inside the container by calling `python BQ_run_module.py`. 
 
 ## Generating Module Files
 
@@ -136,31 +206,16 @@ if you used one during installation, otherwise you wont be able to run the comma
 
 #### Using the bqmod CLI
 
-First you must copy the following files and folders from the `BQ_module_generator` folder into your `{ModuleName}` folder:
-```bash
-# Files
-PythonScriptWrapper.py
-xml_template.xml
-runtime-module.cfg
-
-# Folders
-bqapi (Only for python3 modules)
-public
-```
+***For Python3 modules, you must copy the bqapi folder from the `BQ_module_generator` folder into your `{ModuleName}` folder.***
 Your folder structure should look like this so far:
 ```
 -- Modules
     -- {ModuleName}
         -- bqapi (Only for python3 modules)
-        -- public
-            -- thumbnail.png (module icon displayed in bisque)
         -- Dockerfile
-        -- PythonScriptWrapper.py
-        -- runtime-module.cfg
         -- src
             -- {source_code}
             -- BQ_run_module.py
-        -- xml_template.xml
 ```
 
 The **bqmod** CLI uses simple commands to populate a .json file with the configurations details of your module. 
@@ -169,16 +224,26 @@ All commands must be ran in your `{ModuleName}` folder and are preceded with the
 | Command                   | Options            | Description |
 |---------------------------|--------------------|-------------|
 | **`bqmod`**               | --help             | Shows help information on how to use the CLI            |
-| **`bqmod init`**          |                    | Initializes configuration file for your module. If one already exists, it wills ask whether you would like to overwrite it.|
+| **`bqmod init`**          |                    | Initializes configuration file for your module and pulls necessary files from repo. If one already exists, it wills ask whether you would like to overwrite it.|
 | **`bqmod set`**           | -n --name          | Sets or changes the {ModuleName} field. This must match the {ModuleName} of your module folder and should not have spaces. Ex: **`bqmod set -n "EdgeDetection"`** |
 |                           | -a --authors       | Sets or changes the name of the authors.  Ex: **`bqmod set -a "Ivan"`** |
 |                           | -d --description   | Sets or changes a short description of the module. Must be in quotations. Ex: **`bqmod set -d "This module finds edges in images"`** |
-| **`bqmod inputs`**        | -i --image            | Sets an input of type image. |
-| **`bqmod outputs`**       | -i --image            | Sets and output of type image.|
-|                           | -t --table            | Sets and output of type csv. |
-|                           | -o --output_name   | Required parameter. Sets the name of the output as will be shown in Bisque results section. Ex: **`bqmod outputs --image -o "Edge Image"`** |
+| **`bqmod inputs`**        | -i --image         | Flag that sets an input of type image. |
+|                           | -t --table         | Flag that sets an input of type table. |
+|                           | -f --file          | Flag that sets an input of type file. |
+|                           | -n --name          | Required parameter. Sets the name of the input as will be shown in Bisque module page. ***Input names MUST match input_path_dict keys in BQ_module_run.py.*** |
+| **`bqmod outputs`**       | -i --image         | Flag that sets and output of type image.|
+|                           | -t --table         | Flag that sets and output of type table. |
+|                           | -f --file          | Flag that sets and output of type file. |
+|                           | -n --name          | Required parameter. Sets the name of the output as will be shown in Bisque results section. ***Output names MUST match output_paths_dict keys in BQ_module_run.py.*** |
 | **`bqmod summary`**       |                    | Prints out the current module configurations. |
+| **`bqmod gen_help_html`** |                    | Generates help.html from help.md. |
 | **`bqmod create_module`** |                    | Generates the module .xml. |
+
+***It is crucial to note that the names for inputs and outputs MUST match the dictionary keys of input_path_dict and 
+output_paths_dict respectively!*** Failure to ensure this will result in an error at runtime.
+
+![Bisque](https://github.com/ivanfarevalo/BQ_module_generator/raw/main/public/thumbnail.jpg)
 
 Here's an example of creating a simple Edge Detection module:
 
@@ -188,18 +253,23 @@ ivan@bisque:~/Bisque/Modules/EdgeDetection$ bqmod init
 ivan@bisque:~/Bisque/Modules/EdgeDetection$ bqmod set -n "EdgeDetection"
 ivan@bisque:~/Bisque/Modules/EdgeDetection$ bqmod set -a "Ivan"
 ivan@bisque:~/Bisque/Modules/EdgeDetection$ bqmod set -d "This module finds edges in images"
-ivan@bisque:~/Bisque/Modules/EdgeDetection$ bqmod inputs --image
-ivan@bisque:~/Bisque/Modules/EdgeDetection$ bqmod outputs --image -o "Edge Image"
+ivan@bisque:~/Bisque/Modules/EdgeDetection$ bqmod inputs --image -n "Input Image"   # THIS MUST MATCH DICTIONARY KEYS in input_path_dict
+ivan@bisque:~/Bisque/Modules/EdgeDetection$ bqmod outputs --image -n "Output Image"   # THIS MUST MATCH DICTIONARY KEYS in output_paths_dict
 ivan@bisque:~/Bisque/Modules/EdgeDetection$ bqmod summary
 Name: EdgeDetection
 Author: Ivan
 Description: This module finds edges in images
-Inputs: ['image']
-Outputs: ['image']
-Output_names: ['Edge Image']
+Inputs: {'Input Image': 'image'}
+Outputs: {'Output Image': 'image'}
 ivan@bisque:~/Bisque/Modules/EdgeDetection bqmod create_module
 EdgeDetection.xml created
 ```
+
+#### Generating help html file
+Edit the `help.md` [markdown](https://www.markdownguide.org/basic-syntax/) file in the `public` folder to include any documentation and examples you want to provide users.
+When you are done, generate the html file by running `bqmod gen_help_html` from the `{ModuleName}` folder.
+
+
 
 #### Module Folder Structure
 This should be the resulting folder structure after creating the module.
@@ -210,6 +280,7 @@ This should be the resulting folder structure after creating the module.
         -- bqapi (Only for python3 modules)
         -- public
             -- thumbnail.png (module icon for bisque)
+            -- help.md (Help markdown document)
         -- Dockerfile
         -- PythonScriptWrapper.py
         -- runtime-module.cfg
@@ -276,7 +347,7 @@ COPY EdgeDetection.xml /module/EdgeDetection.xml
 ENV PATH /module:$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV PYTHONPATH $PYTHONPATH:/module/src
 ```
- 
+
 
 #### Creating Module Image
 Once you update the Dockerfile, create a new Docker image by running the following command from your `{ModuleName}` folder.
@@ -307,6 +378,7 @@ docker build -t biodev.ece.ucsb.edu:5000/edgedetection:v2.0.0 .
 ```
 You can also overwrite images by building with same `{modulename}:{tagname}` until you get to a point in which you want to
 keep that specific image as reference.
+
 #### Updating runtime-module-cfg
 The runtime module configuration file specifies the image that Bisque will pull when a user runs your module.
 
@@ -325,7 +397,7 @@ module_enabled = True
 runtime.platforms = command
 
 [command]
-docker.image = edgedetection:v2.0.1     # Only edit this line
+docker.image = edgedetection:v2.0.0     # Only edit this line
 environments = Staged,Docker
 executable = python PythonScriptWrapper.py
 files = pydist, PythonScriptWrapper.py
@@ -399,11 +471,10 @@ Drag and drop the module you want to test from the right panel to the left and e
 If you don't see any modules on this list, go throught the following debug process:
 * Check that the `Engine URL` is correct. If your ip address is `192.168.181.345` for example, your engine url should be
 `http://192.168.181.345:8080/engine_service`.
-* Make sure that the mounted folder `-v $(pwd):/source/modules` contains the `{ModuleName}` folders of that you want to test. 
+* Make sure that the mounted folder `-v $(pwd):/source/modules` contains the `{ModuleName}` folders of the modules you want to test. 
 You should be in your `Modules` folder when running the docker container.
-* Make sure that the `.xml` file in your `{ModuleName}` folder has the same name as shown in the field 
-`<module name="{ModuleName}" type="runtime">` of the xml. For example, for the `EdgeDetection` module, 
-the `.xml` file should be named `EdgeDetection.xml` and should have the corresponding `<module name="EdgeDetection" type="runtime">` field.
+* Make sure that the `.xml` file in your `{ModuleName}` folder and the `{ModuleName}` folder have the same name.
+For example, for the `EdgeDetection` module, {ModuleName} should be `EdgeDetection` and the `.xml` should be named `EdgeDetection.xml`.
 * Make sure that your `{ModuleName}` folder has a `runtime-module.cfg` file.
 
 
