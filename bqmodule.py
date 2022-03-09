@@ -55,14 +55,13 @@ def download_files(): #TODO help url
 
     cwd = os.getcwd()
     python_wrapper_path = os.path.join(cwd, 'PythonScriptWrapper.py')
-    xml_template_path = os.path.join(cwd, 'xml_template.xml')
+    xml_template_path = os.path.join(cwd, 'xml_template')
     runtime_cfg_path = os.path.join(cwd, 'runtime-module.cfg')
 
     if not os.path.exists(python_wrapper_path):
         wget.download(python_wrapper_url, python_wrapper_path)
     if not os.path.exists(xml_template_path):
-        # wget.download(xml_template_url, xml_template_path)
-        pass
+        wget.download(xml_template_url, xml_template_path)
     if not os.path.exists(runtime_cfg_path):
         wget.download(runtime_cfg_url, runtime_cfg_path)
 
