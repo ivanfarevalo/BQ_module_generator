@@ -105,7 +105,7 @@ def run_module(input_path_dict, output_folder_path, min_hysteresis=100, max_hyst
     input_img_name = os.path.split(input_img_path)[-1][:-4]
 
     # Generate desired output file names and paths
-    output_img_path = "%s/%s_out.jpg" % (output_folder_path, input_img_name)
+    output_img_path = "%s/%s_out.jpg" % (output_folder_path, input_img_name) # CHECK FILE EXTENSION!
 
     # Save output files
     cv2.imwrite(output_img_path, edges_detected)
@@ -137,6 +137,8 @@ if __name__ == '__main__':
     # Display output image and ensure correct output
     cv2.imshow("Results",out_img)
 ```
+
+***IT IS IMPORTANT TO TRIPLE CHECK OUTPUT FILE EXTENSIONS TO AVOID BUGS WHEN UPLOADING RESULTS BACK TO BISQUE!***
 
 #### Containerizing application 
 
@@ -278,9 +280,11 @@ This should be the resulting folder structure after creating the module.
 -- Modules
     -- {ModuleName}
         -- bqapi (Only for python3 modules)
+        -- bqconfig.json
         -- public
             -- thumbnail.png (module icon for bisque)
-            -- help.md (Help markdown document)
+            -- help.md (Help markdown)
+            -- help.htmo (Help html)
         -- Dockerfile
         -- PythonScriptWrapper.py
         -- runtime-module.cfg
@@ -301,6 +305,7 @@ and copy the required files and folders into your module container.
 If your module is written in Python 3, you need to make sure to copy the `bqapi` folder from this repo in your `{ModuleName}` folder as described above. 
 
 Here is the updated Dockerfile for a simple Edge Detection module:
+***Remeber to change the .xml file name to your {ModuleName}.xml file***
 
 ```
 # ==================================================================
@@ -342,6 +347,8 @@ RUN pip3 install requests-toolbelt
 
 COPY PythonScriptWrapper.py /module/
 COPY bqapi/ /module/bqapi
+
+# Replace the following line with your {ModuleName}.xml
 COPY EdgeDetection.xml /module/EdgeDetection.xml
 
 ENV PATH /module:$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -440,7 +447,8 @@ or
 ifconfig | grep "inet.*Bcast.*" | awk '{print $2}'
 ```
 It will be the address that has twelve digits with a period after every third digit.
-You can also read the following [article](https://www.techbout.com/find-public-and-private-ip-address-44552/) to find 
+You can also read the following [article (Windows, Mac)](https://www.techbout.com/find-public-and-private-ip-address-44552/) 
+or [article (Linux)](https://phoenixnap.com/kb/how-to-find-ip-address-linux) to find 
 your private ip address if the previous commands didn't work.
 
 If Bisque is not up, go into the container with `docker run -it amilworks/bisque-module-dev:git bash` and check the 
