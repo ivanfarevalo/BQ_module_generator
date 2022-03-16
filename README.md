@@ -284,7 +284,7 @@ This should be the resulting folder structure after creating the module.
         -- public
             -- thumbnail.png (module icon for bisque)
             -- help.md (Help markdown)
-            -- help.htmo (Help html)
+            -- help.html (Help html)
         -- Dockerfile
         -- PythonScriptWrapper.py
         -- runtime-module.cfg

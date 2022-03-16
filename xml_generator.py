@@ -130,37 +130,11 @@ class XMLGenerator():
 
 
 
-    def edit_xml(self, field, value, out_name='Output'):
+    def edit_xml(self, field, value):
 
         for child in self.root:
-            # print(child.tag, child.attrib)
-            # print(child.attrib)
 
-            if field == 'inputs' and child.attrib['name'] == 'inputs':
-                if value == 'image':
-                    input_name_tag = ET.SubElement(child, 'tag', attrib={'name': 'resource_url', 'type': 'resource'})
-                    template_tag = ET.SubElement(input_name_tag, 'template')
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': 'Select Image'})
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'image'})
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'accepted_type', 'value': 'dataset'})
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'prohibit_upload', 'value': 'True'})
-                elif value == 'mex':
-                    ET.SubElement(child, 'tag', attrib={'name': 'mex_url', 'type': 'system-input_resource'})
-                elif value == 'bisque_token':
-                    ET.SubElement(child, 'tag', attrib={'name': 'bisque_token', 'type': 'system-input_resource'})
-
-            elif field == 'outputs' and child.attrib['name'] == 'outputs':
-                if value == 'image':
-                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': 'OutImage', 'type': 'image'})
-                    template_tag = ET.SubElement(output_name_tag, 'template')
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': out_name})
-                if value == 'csv': # TEMPORARY FOR CONVINIENCE -> FILL IN  INFO YOURSELF
-                    output_name_tag = ET.SubElement(child, 'tag', attrib={'name': 'OutCsv'})
-                    template_tag = ET.SubElement(output_name_tag, 'template')
-                    ET.SubElement(template_tag, 'tag', attrib={'name': 'label', 'value': out_name})
-
-
-            elif field == 'title' and child.attrib['name'] == 'title':
+            if field == 'title' and child.attrib['name'] == 'title':
                 child.attrib['value'] = value
 
             elif field == 'authors' and child.attrib['name'] == 'authors':

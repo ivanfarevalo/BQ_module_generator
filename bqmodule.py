@@ -3,6 +3,8 @@ import markdown
 import os
 import json
 import wget
+import ast
+from tabulate import tabulate
 from xml_generator import XMLGenerator
 
 
@@ -34,7 +36,6 @@ def bqmod(ctx):
                                    " All bqmod commands must be ran from your {ModuleName} folder."
                                    " Navigate to your {ModuleName} folder and try again or initialize a bqconfig "
                                    "file with `bqmod init` if you  haven't done so." % os.getcwd(), ctx=ctx)
-
 
 
 def create_config_file():
@@ -79,7 +80,6 @@ def download_files(): #TODO help url
     #     wget.download(bqapi_url, bqapi_dir_path)
 
 
-
 @bqmod.command("init")
 @click.pass_context
 def init(ctx):
@@ -103,7 +103,6 @@ def init(ctx):
 @click.option("--name", "-n", default=None, help="Module name with no spaces. Same as {ModuleName} folder")
 @click.option("--author", "-a", default=None, help="Authors name in quotations")
 @click.option("--description", "-d", default=None, help="Write short description in quotations")
-# @click.option("--base_docker", "-b", default=None, help="Base docker image used to containarize source code") # TODO
 @click.pass_context
 def set(ctx, name, author, description):
     """ Set name of module, authors, and short description"""
@@ -121,10 +120,6 @@ def set(ctx, name, author, description):
     else:
         click.echo("Need to include at least on option: --name, --author, --description")
         click.echo(ctx.invoked_subcommand)
-
-
-# def check_var_name(name):
-#     return '_'.join(name.split()).lower()
 
 
 @bqmod.command("inputs", no_args_is_help=True)
@@ -211,31 +206,9 @@ def summary(ctx):
         click.secho("%s: %s" % (key, ctx.obj[key]), fg='green')
 
 
-@bqmod.command("create_module_old")
-@click.pass_context
-def create_module_old(ctx):
-    """ Create module files"""
-
-    BQ_module_xml = XMLGenerator(ctx.obj['Name'])
-
-    BQ_module_xml.xml_set_module_name()
-    for input_name in ctx.obj['Inputs']:
-        BQ_module_xml.edit_xml('inputs', ctx.obj['Inputs'][input_name])
-
-    BQ_module_xml.edit_xml('inputs', ctx.obj['Inputs'][0])
-    BQ_module_xml.edit_xml('inputs', 'mex')
-    BQ_module_xml.edit_xml('inputs', 'bisque_token')
-    BQ_module_xml.edit_xml('outputs', ctx.obj['Outputs'][0], out_name=ctx.obj['Output_names'][0])
-    BQ_module_xml.edit_xml('title', ctx.obj['Name'])
-    BQ_module_xml.edit_xml('authors', ctx.obj['Author'])
-    BQ_module_xml.edit_xml('description', ctx.obj['Description'])
-    BQ_module_xml.write_xml()
-
-    click.secho("{%s.xml created" % ctx.obj['Name'], fg='green')
-
-
 @bqmod.command("gen_help_html")
 def gen_help_html():
+    """ Creates help.html from help.md"""
     public_dir = os.path.join(os.getcwd(), 'public')
 
     try:
@@ -249,11 +222,21 @@ def gen_help_html():
         raise click.FileError('No markdown help file found at %s' % public_dir)
 
 
-
 @bqmod.command("create_module")
 @click.pass_context
 def create_module(ctx):
     """ Create module files"""
+
+    config_error_flag = check_config_main(ctx.obj)
+
+    if config_error_flag:
+
+        if click.confirm(
+            'Dictionary key mismatches were found in BQ_run_module.py. It is adviced to double check that the '
+            'dictionary keys used in BQ_run_module.py match the input names set with bqmod. Do you still wish to '
+            'continue creating the module?',
+            abort=True):
+            pass
 
 
     BQ_module_xml = XMLGenerator(ctx.obj['Name'])
@@ -279,12 +262,155 @@ def create_module(ctx):
     click.secho("%s.xml created" % ctx.obj['Name'], fg='green')
 
 
+def check_config_main(bqconfig_dict):
+    """ Check module configurations for inconsistencies."""
 
-# Create module: create xml, copy PythonScriptWrapper,
+    """ Check module configurations and ensures keys used in the BQ_run_module.py
+        dictionaries match input/output names set in CLI """
 
-# 2 options: 1) Git repo with xml template, PythonScriptWrapper, runtime_config, setup.py, bqmodule.py, generatexml.
-#            2) Have the click library pull these templates from a repo when calling a create_module.
-#               *)  Need to build new image based on module image
+    # Standardized Input and Output dictionary names as described in documentation
+    input_dictionary_name = 'input_path_dict'
+    output_dictionary_name = 'output_paths_dict'
+
+    valid_in_keys = []
+    valid_out_keys = []
+
+    check_mssg_input = []
+    check_mssg_output = []
+    dict_keys_mismatch = False
+
+    for key in bqconfig_dict:
+
+        # Check that bqconfig.json has all fields set
+        assert bqconfig_dict[key], "'%s' field missing in bqconfig file. Run `bqmod summary` to check missing fields and " \
+                             "run respective commands to set fields." % key
+
+        if key == 'Inputs':
+            valid_in_keys = list(bqconfig_dict[key].keys())
+
+        if key == 'Outputs':
+            valid_out_keys = list(bqconfig_dict[key].keys())
+
+    # Open and parse BQ_run_module.py, find run_module function, and check that indexed keys match bq configuration.
+    try:
+        with open('test_keys.py') as bqrun:
+            BQ_run_module = bqrun.read()
+
+    except IOError:
+        mssg = "No 'BQ_run_module.py' file found in %s" % os.path.join(os.getcwd(), 'src/BQ_run_module.py')
+        click.secho("%s" % mssg, fg='red')
+        return
+
+    run_fn = []
+    bq_tree = ast.parse(BQ_run_module)
+    for n in ast.iter_child_nodes(bq_tree):
+        try:
+            if n.name == 'run_module':
+                run_fn.append(n)
+        except AttributeError:  # Anything without a name
+            pass
+
+    assert len(run_fn) == 1, "There should be exactly 1 'run_module' function. None or multiple found."
+
+    run_fn = run_fn[0]
+
+    used_inkeys = {1}
+    used_inkeys.remove(1)  # Some bug on Click doesn't allow for instantiating empty set
+    used_outkeys = {1}
+    used_outkeys.remove(1)  # Some bug on Click doesn't allow for instantiating empty set
+
+    empty_list = []
+    # used_inkeys = set(empty_list)
+    # used_outkeys = set(empty_list)
+
+    for node in ast.walk(run_fn):
+        if isinstance(node, ast.Subscript) and node.value.id in (input_dictionary_name, output_dictionary_name):
+            try:
+                key = node.slice.value.s  # Python < 3.9
+            except AttributeError:
+                key = node.slice.value  # Python => 3.9
+
+            if node.value.id == input_dictionary_name:
+                if key not in valid_in_keys:
+                    # print("Invalid '%s' key %s used in BQ_run_module.py on line %s" % (input_dictionary_name, key, node.lineno))
+                    check_mssg_input.append("Invalid %s key '%s' used in BQ_run_module.py on line %s" % (
+                    input_dictionary_name, key, node.lineno))
+                used_inkeys.add(key)
+            else:
+                if key not in valid_out_keys:
+                    # print("Invalid '%s' key %s used in BQ_run_module.py on line %s" % (output_dictionary_name, key, node.lineno))
+                    check_mssg_output.append("Invalid %s key '%s' used in BQ_run_module.py on line %s" % (
+                    output_dictionary_name, key, node.lineno))
+                used_outkeys.add(key)
+
+    # missed_inkeys = set(valid_in_keys) - used_inkeys
+    # missed_outkeys = set(valid_out_keys) - used_outkeys
+
+    missed_inkeys = {1};
+    missed_inkeys.remove(1)
+    for k in valid_in_keys:
+        missed_inkeys.add(k)
+    missed_inkeys = missed_inkeys - used_inkeys
+
+    missed_outkeys = {1};
+    missed_outkeys.remove(1)
+    for k in valid_out_keys:
+        missed_outkeys.add(k)
+    missed_outkeys = missed_outkeys - used_outkeys
+
+
+    for k in missed_inkeys:
+        # print("Missing input key %s in BQ_run_module.py" % k)
+        check_mssg_input.append("Missing input key '%s' in BQ_run_module.py" % k)
+
+    for k in missed_outkeys:
+        # print("Missing output key %s in BQ_run_module.py" % k)
+        check_mssg_output.append("Missing output key '%s' in BQ_run_module.py" % k)
+
+    print(tabulate(
+        {"Input Names set with bqmod": valid_in_keys,
+         "Input Dictionary Keys used in BQ_run_module.py": used_inkeys}, headers="keys", tablefmt="orgtbl"))
+
+    print('\n')
+    if check_mssg_input:
+        click.secho("Mismatched input dictionary keys found", fg='red')
+        for mssg in check_mssg_input:
+            click.secho("%s" % mssg, fg='red')
+            # print(mssg)
+            dict_keys_mismatch = True
+    else:
+        click.secho("No mismatched input dictionary keys found", fg='green')
+        # print("No mismatched dictionary keys found")
+
+    print('\n')
+    print(tabulate(
+        {"Output Names set with bqmod": valid_out_keys,
+         "Output Dictionary Keys used in BQ_run_module.py": used_outkeys}, headers="keys", tablefmt="orgtbl"))
+
+    print('\n')
+    if check_mssg_output:
+        click.secho("Mismatched ouput dictionary keys found", fg='red')
+        for mssg in check_mssg_output:
+            click.secho("%s" % mssg, fg='red')
+            # print(mssg)
+            dict_keys_mismatch = True
+    else:
+        click.secho("No mismatched dictionary keys found", fg='green')
+        # print("No mismatched dictionary keys found")
+
+
+    return dict_keys_mismatch
+
+
+
+@bqmod.command("check_config")
+@click.pass_context
+def check_config(ctx):
+    """ Check module configurations for inconsistencies."""
+
+    return check_config_main(ctx.obj)
+
+
 
 
 if __name__ == '__main__':

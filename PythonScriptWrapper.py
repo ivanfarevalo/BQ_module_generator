@@ -119,7 +119,7 @@ class PythonScriptWrapper(object):
             log.info("***** Processing resource named: %s" % input_name)
             resource_obj = bq.load(getattr(self.options, input_name))
             """
-            bq.load returns bqapi.bqclass.BQImage object. Ex:
+            bq.load returns bqapi.bqclass.BQImage object or bqapi.bqclass.BQResource object. Ex:
             resource_obj: (image:name=whale.jpeg,value=file://admin/2022-02-25/whale.jpeg,type=None,uri=http://128.111.185.163:8080/data_service/00-pkGCYS4SPCtQVcdZUUj4sX,ts=2022-02-25T17:05:13.289578,resource_uniq=00-pkGCYS4SPCtQVcdZUUj4sX)
 
             resource_obj: (resource:name=yolov5s.pt,type=None,uri=http://128.111.185.163:8080/data_service/00-D9e6xVPhU93JtZjZZtwkLm,ts=2022-02-26T01:08:26.198330,resource_uniq=00-D9e6xVPhU93JtZjZZtwkLm) (PythonScriptWrapper.py:137)
