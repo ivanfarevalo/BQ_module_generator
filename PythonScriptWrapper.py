@@ -119,7 +119,7 @@ class PythonScriptWrapper(object):
             log.info("***** Processing resource named: %s" % input_name)
             resource_obj = bq.load(getattr(self.options, input_name))
             """
-            bq.load returns bqapi.bqclass.BQImage object. Ex:
+            bq.load returns bqapi.bqclass.BQImage object or bqapi.bqclass.BQResource object. Ex:
             resource_obj: (image:name=whale.jpeg,value=file://admin/2022-02-25/whale.jpeg,type=None,uri=http://128.111.185.163:8080/data_service/00-pkGCYS4SPCtQVcdZUUj4sX,ts=2022-02-25T17:05:13.289578,resource_uniq=00-pkGCYS4SPCtQVcdZUUj4sX)
 
             resource_obj: (resource:name=yolov5s.pt,type=None,uri=http://128.111.185.163:8080/data_service/00-D9e6xVPhU93JtZjZZtwkLm,ts=2022-02-26T01:08:26.198330,resource_uniq=00-D9e6xVPhU93JtZjZZtwkLm) (PythonScriptWrapper.py:137)
@@ -151,9 +151,14 @@ class PythonScriptWrapper(object):
 
     def run(self):
         """
-        Run Python script
-
+        Fetches input resource names, types, and quantity from module xml which it then uses to pull
+        resources from  Bisque into the container. It calls the run_module function from the user defined
+        BQ_module_genrator which returns the paths inside the container of each output file. It then passes
+        these paths to upload_results which uploads each output in the container to Bisque using its respective
+        type service.
+        :return: appends each output xml string to the list self.output_resources
         """
+
         bq = self.bqSession
         log.info('***** self.options: %s' % (self.options))
         
@@ -270,10 +275,8 @@ class PythonScriptWrapper(object):
 
     def validate_input(self):
         """
-            Check to see if a mex with token or user with password was provided.
-
-            @return True is returned if validation credention was provided else
-            False is returned
+        Check to see if a mex with token or user with password was provided.
+        @return True is returned if validation credentials were provided else return False
         """
         if (self.options.mexURL and self.options.token):  # run module through engine service
             return True
@@ -291,7 +294,6 @@ class PythonScriptWrapper(object):
         parser.add_option('--user', dest="user")
         parser.add_option('--pwd', dest="pwd")
         parser.add_option('--root', dest="root")
-        # parser.add_option('--resource_url', dest="resource_url")
 
         (options, args) = parser.parse_args()
 
@@ -302,8 +304,7 @@ class PythonScriptWrapper(object):
         fh.setFormatter(formatter)
         log.addHandler(fh)
 
-        try:  # pull out the mex
-
+        try:  # pull out the mex url and bisque token
             if not options.mexURL:
                 options.mexURL = sys.argv[-2]
             if not options.token:
@@ -311,18 +312,17 @@ class PythonScriptWrapper(object):
         except IndexError:  # no argv were set
             pass
 
-        if not options.stagingPath:
+        if not options.stagingPath: # Path where logs, outputs, and run information are saved
             options.stagingPath = ''
 
         log.debug('\n\nPARAMS : %s \n\n Options: %s' % (args, options))
         self.options = options
 
         if self.validate_input():
-
-            # initalizes if user and password are provided
+            # Initializes if user and password are provided
             if (self.options.user and self.options.pwd and self.options.root):
 
-                try:
+                try: # Initialize a local Bisque session with passed parameters
                     self.bqSession = BQSession().init_local(self.options.user, self.options.pwd,
                                                             bisque_root=self.options.root)
                     self.options.mexURL = self.bqSession.mex.uri
@@ -330,7 +330,7 @@ class PythonScriptWrapper(object):
                 except:
                     return
 
-            # initalizes if mex and mex token is provided
+            # Initializes Bisque session from mex if mex and token are provided
             elif (self.options.mexURL and self.options.token):
 
                 try:
@@ -338,26 +338,33 @@ class PythonScriptWrapper(object):
                 except:
                     return
 
-
-
             else:
                 raise ScriptError('Insufficient options or arguments to start this module')
 
-            try:
+            try: # Calls mex_parameter_parser which parser the mex xml and adds the input uris to self.options
                 self.setup()
             except Exception as e:
                 log.exception("Exception during setup")
                 self.bqSession.fail_mex(msg="Exception during setup: %s" % str(e))
                 return
-            ####
+
             try:
+                '''Fetches input resource names, types, and quantity from module xml which it then uses to pull 
+                resources from  Bisque into the container. It calls the run_module function from the user defined 
+                BQ_module_genrator which returns the paths inside the container of each output file. It then passes
+                these paths to upload_results which uploads each output in the container to Bisque using its respective
+                type service.
+                '''
                 self.run()
             except (Exception, ScriptError) as e:
                 log.exception("Exception during run")
                 self.bqSession.fail_mex(msg="Exception during run: %s" % str(e))
                 return
-            ##
+
             try:
+                '''Create an output xml node with all output tags and values necessary to update the mex and display
+                the outputs on the module page.
+                '''
                 self.tear_down()
             except (Exception, ScriptError) as e:
                 log.exception("Exception during tear_down")
@@ -365,8 +372,7 @@ class PythonScriptWrapper(object):
                 return
 
             self.bqSession.close()
-        log.debug('Session Close')
-
+        log.debug('Session Closed')
 
 if __name__ == "__main__":
     PythonScriptWrapper().main()

@@ -223,24 +223,26 @@ Your folder structure should look like this so far:
 The **bqmod** CLI uses simple commands to populate a .json file with the configurations details of your module. 
 All commands must be ran in your `{ModuleName}` folder and are preceded with the `bqmod` command.
 
-| Command                   | Options            | Description |
-|---------------------------|--------------------|-------------|
-| **`bqmod`**               | --help             | Shows help information on how to use the CLI            |
-| **`bqmod init`**          |                    | Initializes configuration file for your module and pulls necessary files from repo. If one already exists, it wills ask whether you would like to overwrite it.|
-| **`bqmod set`**           | -n --name          | Sets or changes the {ModuleName} field. This must match the {ModuleName} of your module folder and should not have spaces. Ex: **`bqmod set -n "EdgeDetection"`** |
-|                           | -a --authors       | Sets or changes the name of the authors.  Ex: **`bqmod set -a "Ivan"`** |
-|                           | -d --description   | Sets or changes a short description of the module. Must be in quotations. Ex: **`bqmod set -d "This module finds edges in images"`** |
-| **`bqmod inputs`**        | -i --image         | Flag that sets an input of type image. |
-|                           | -t --table         | Flag that sets an input of type table. |
-|                           | -f --file          | Flag that sets an input of type file. |
-|                           | -n --name          | Required parameter. Sets the name of the input as will be shown in Bisque module page. ***Input names MUST match input_path_dict keys in BQ_module_run.py.*** |
-| **`bqmod outputs`**       | -i --image         | Flag that sets and output of type image.|
-|                           | -t --table         | Flag that sets and output of type table. |
-|                           | -f --file          | Flag that sets and output of type file. |
-|                           | -n --name          | Required parameter. Sets the name of the output as will be shown in Bisque results section. ***Output names MUST match output_paths_dict keys in BQ_module_run.py.*** |
-| **`bqmod summary`**       |                    | Prints out the current module configurations. |
-| **`bqmod gen_help_html`** |                    | Generates help.html from help.md. |
-| **`bqmod create_module`** |                    | Generates the module .xml. |
+| Command                   | Options          | Description                                                                                                                                                           |
+|---------------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **`bqmod`**               | --help           | Shows help information on how to use the CLI                                                                                                                          |
+| **`bqmod init`**          |                  | Initializes configuration file for your module and pulls necessary files from repo. If one already exists, it wills ask whether you would like to overwrite it.       |
+| **`bqmod set`**           | -n --name        | Sets or changes the {ModuleName} field. This must match the {ModuleName} of your module folder and should not have spaces. Ex: **`bqmod set -n "EdgeDetection"`**     |
+|                           | -a --authors     | Sets or changes the name of the authors.  Ex: **`bqmod set -a "Ivan"`**                                                                                               |
+|                           | -d --description | Sets or changes a short description of the module. Must be in quotations. Ex: **`bqmod set -d "This module finds edges in images"`**                                  |
+| **`bqmod inputs`**        | --remove         | Flag to remove input specified by --name flag                                                                                                                         |
+|                           | -i --image       | Flag that sets an input of type image.                                                                                                                                |
+|                           | -t --table       | Flag that sets an input of type table.                                                                                                                                |
+|                           | -f --file        | Flag that sets an input of type file.                                                                                                                                 |
+|                           | -n --name        | Required parameter. Sets the name of the input as will be shown in Bisque module page. ***Input names MUST match input_path_dict keys in BQ_module_run.py.***         |
+| **`bqmod outputs`**       | --remove         | Flag to remove output specified by --name flag.                                                                                                                       |
+|                           | -i --image       | Flag that sets and output of type image.                                                                                                                              |
+|                           | -t --table       | Flag that sets and output of type table.                                                                                                                              |
+|                           | -f --file        | Flag that sets and output of type file.                                                                                                                               |
+|                           | -n --name        | Required parameter. Sets the name of the output as will be shown in Bisque results section. ***Output names MUST match output_paths_dict keys in BQ_module_run.py.*** |
+| **`bqmod summary`**       |                  | Prints out the current module configurations.                                                                                                                         |
+| **`bqmod gen_help_html`** |                  | Generates help.html from help.md.                                                                                                                                     |
+| **`bqmod create_module`** |                  | Generates the module .xml.                                                                                                                                            |
 
 ***It is crucial to note that the names for inputs and outputs MUST match the dictionary keys of input_path_dict and 
 output_paths_dict respectively!*** Failure to ensure this will result in an error at runtime.
@@ -284,7 +286,7 @@ This should be the resulting folder structure after creating the module.
         -- public
             -- thumbnail.png (module icon for bisque)
             -- help.md (Help markdown)
-            -- help.htmo (Help html)
+            -- help.html (Help html)
         -- Dockerfile
         -- PythonScriptWrapper.py
         -- runtime-module.cfg
@@ -491,10 +493,22 @@ For example, for the `EdgeDetection` module, {ModuleName} should be `EdgeDetecti
 To run your module, click the `Analyse` button from the top menu bar and choose your module. If you don't see your module, 
 refresh the page and try again.
 
+## Debug Steps
+
 Follow the steps to run your module and verify that the result is as expected. If Bisque reports any errors
-or seems to be frozen, you can debug it by checking the logs in the Bisque container. Every time you hit the `Run` button,
+or seems to be frozen, you can debug it by checking the logs in the Bisque container. 
+
+#### Log files
+Every time you hit the `Run` button,
 Bisque starts a new container of your module and saves their corresponding logs in `/source/staging/{mex_id}`. Mex id's start with `00-` followed by
-22 alphanumeric characters, Ex: `00-fMqFvjiHRjUfaff6GRy73M`. The `docker_run.log` logs information regarding
+22 alphanumeric characters, Ex: `00-fMqFvjiHRjUfaff6GRy73M`. This folder will have all the logs needed to debug your module. To get to this folder, 
+run the following:
+```bash
+docker exec -it amilworks/bisque-module-dev:git bash
+cd /source/staging/{mex_id}
+```
+
+The **`docker_run.log`** logs information regarding
 the pulling, starting, and stopping of your module container. The `PythonScript.log` logs information
 regarding the communication between Bisque and your module. As mentioned at the beginning of these guide, if you would like to 
 add custom outputs or interactive parameters, follow the in depth [guide](https://ucsb-vrl.github.io/bisqueUCSB/module-development.html) on creating modules.
